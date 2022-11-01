@@ -573,6 +573,20 @@ class SharedRuntime: AllStatic {
   static void print_ic_miss_histogram();
 
 #endif // PRODUCT
+
+#ifdef ADDRESS_SANITIZER
+ public:
+  static void asan_store1(address addr);
+  static void asan_store2(address addr);
+  static void asan_store4(address addr);
+  static void asan_store8(address addr);
+  static void asan_storeN(address addr, size_t n);
+  static void asan_load1(address addr);
+  static void asan_load2(address addr);
+  static void asan_load4(address addr);
+  static void asan_load8(address addr);
+  static void asan_loadN(address addr, size_t n);
+#endif
 };
 
 

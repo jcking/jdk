@@ -3979,6 +3979,14 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
   no_shared_spaces("CDS Disabled");
 #endif // INCLUDE_CDS
 
+  ASAN_ONLY(
+    // ASAN is only implemented for the interpreter.
+    set_mode_flags(_int);
+
+    FLAG_SET_ERGO(RewriteBytecodes, false);
+    FLAG_SET_ERGO(RewriteFrequentPairs, false);
+  );
+
   // Verify NMT arguments
   const NMT_TrackingLevel lvl = NMTUtil::parse_tracking_level(NativeMemoryTracking);
   if (lvl == NMT_unknown) {

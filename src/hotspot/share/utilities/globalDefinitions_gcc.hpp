@@ -160,4 +160,9 @@ inline int g_isfinite(jdouble f)                 { return isfinite(f); }
 //
 #define ATTRIBUTE_ALIGNED(x) __attribute__((aligned(x)))
 
+#define ATTRIBUTE_ARTIFICIAL __attribute__((artificial))
+
+#define LIKELY(condition) (__builtin_expect(false || (condition), true))
+#define UNLIKELY(condition) (__builtin_expect(false || (condition), false))
+
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_GCC_HPP

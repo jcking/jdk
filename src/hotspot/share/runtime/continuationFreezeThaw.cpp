@@ -66,6 +66,7 @@
 #include "runtime/stackWatermarkSet.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/exceptions.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 /*
@@ -161,10 +162,6 @@ static const bool TEST_THAW_ONE_CHUNK_FRAME = false; // force thawing frames one
 // when we stack-bang, we need to update a thread field with the lowest (farthest) bang point.
 
 // Data invariants are defined by Continuation::debug_verify_continuation and Continuation::debug_verify_stack_chunk
-
-// Used to just annotatate cold/hot branches
-#define LIKELY(condition)   (condition)
-#define UNLIKELY(condition) (condition)
 
 // debugging functions
 #ifdef ASSERT

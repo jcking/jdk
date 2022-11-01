@@ -34,6 +34,16 @@
 #include "jli_util.h"
 #include "jni.h"
 
+#ifdef ADDRESS_SANITIZER
+// Override weak symbol exposed by ASan to override default options. This is called by ASan
+// extremely early during library loading, before main is called. We explicitly disable LSan when
+// using ASan, as LSan relies on some JVM flags that disable certain features. Instead we use LSan
+// separately, so ASan can be used with those features.
+JNIEXPORT const char* __asan_default_options() {
+  return "detect_leaks=0,handle_segv=0";
+}
+#endif
+
 /*
  * Entry point.
  */

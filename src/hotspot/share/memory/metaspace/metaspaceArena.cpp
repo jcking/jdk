@@ -44,6 +44,7 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "asan/asan.hpp"
 
 namespace metaspace {
 
@@ -233,6 +234,9 @@ MetaWord* MetaspaceArena::allocate(size_t requested_word_size) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
       UL2(trace, "taken from fbl (now: %d, " SIZE_FORMAT ").",
           _fbl->count(), _fbl->total_size());
+
+      Asan::unpoison_memory_region(p, requested_word_size * BytesPerWord);
+
       // Note: free blocks in freeblock dictionary still count as "used" as far as statistics go;
       // therefore we have no need to adjust any usage counters (see epilogue of allocate_inner())
       // and can just return here.
@@ -351,6 +355,7 @@ MetaWord* MetaspaceArena::allocate_inner(size_t requested_word_size) {
     UL2(trace, "after allocation: %u chunk(s), current:" METACHUNK_FULL_FORMAT,
         _chunks.count(), METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
     UL2(trace, "returning " PTR_FORMAT ".", p2i(p));
+    Asan::unpoison_memory_region(p, requested_word_size * BytesPerWord);
   }
   return p;
 }
@@ -377,6 +382,7 @@ void MetaspaceArena::deallocate_locked(MetaWord* p, size_t word_size) {
 // Prematurely returns a metaspace allocation to the _block_freelists because it is not
 // needed anymore.
 void MetaspaceArena::deallocate(MetaWord* p, size_t word_size) {
+  Asan::poison_memory_region(p, word_size * BytesPerWord);
   MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
   deallocate_locked(p, word_size);
 }

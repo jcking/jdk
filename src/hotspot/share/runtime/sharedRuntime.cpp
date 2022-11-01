@@ -75,6 +75,7 @@
 #include "utilities/resourceHash.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/xmlstream.hpp"
+#include "asan/asan.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
@@ -3468,3 +3469,47 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* current) {
   BarrierSet *bs = BarrierSet::barrier_set();
   bs->on_slowpath_allocation_exit(current, new_obj);
 }
+
+#ifdef ADDRESS_SANITIZER
+
+JRT_LEAF(void, SharedRuntime::asan_store1(address addr))
+  Asan::store1(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_store2(address addr))
+  Asan::store2(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_store4(address addr))
+  Asan::store4(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_store8(address addr))
+  Asan::store8(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_storeN(address addr, size_t n))
+  Asan::storeN(addr, n);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_load1(address addr))
+  Asan::load1(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_load2(address addr))
+  Asan::load2(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_load4(address addr))
+  Asan::load4(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_load8(address addr))
+  Asan::load8(addr);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::asan_loadN(address addr, size_t n))
+  Asan::loadN(addr, n);
+JRT_END
+
+#endif

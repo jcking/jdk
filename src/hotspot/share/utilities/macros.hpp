@@ -265,6 +265,14 @@
 #define NOT_JFR_RETURN_(code) { return code; }
 #endif
 
+#ifdef ADDRESS_SANITIZER
+#define ASAN_ONLY(code) code
+#define NOT_ASAN(code)
+#else
+#define ASAN_ONLY(code)
+#define NOT_ASAN(code) code
+#endif
+
 #ifndef INCLUDE_JVMCI
 #define INCLUDE_JVMCI 1
 #endif

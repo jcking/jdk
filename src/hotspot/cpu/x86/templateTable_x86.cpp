@@ -771,10 +771,9 @@ void TemplateTable::iaload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_INT, IN_HEAP | IS_ARRAY, rax,
-                    Address(rdx, rax, Address::times_4,
-                            arrayOopDesc::base_offset_in_bytes(T_INT)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_4, arrayOopDesc::base_offset_in_bytes(T_INT));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load4));
+  __ access_load_at(T_INT, IN_HEAP | IS_ARRAY, rax, addr, noreg, noreg);
 }
 
 void TemplateTable::laload() {
@@ -784,10 +783,9 @@ void TemplateTable::laload() {
   index_check(rdx, rax); // kills rbx
   NOT_LP64(__ mov(rbx, rax));
   // rbx,: index
-  __ access_load_at(T_LONG, IN_HEAP | IS_ARRAY, noreg /* ltos */,
-                    Address(rdx, rbx, Address::times_8,
-                            arrayOopDesc::base_offset_in_bytes(T_LONG)),
-                    noreg, noreg);
+  Address addr(rdx, rbx, Address::times_8, arrayOopDesc::base_offset_in_bytes(T_LONG));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load8));
+  __ access_load_at(T_LONG, IN_HEAP | IS_ARRAY, noreg /* ltos */, addr, noreg, noreg);
 }
 
 
@@ -797,11 +795,9 @@ void TemplateTable::faload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_FLOAT, IN_HEAP | IS_ARRAY, noreg /* ftos */,
-                    Address(rdx, rax,
-                            Address::times_4,
-                            arrayOopDesc::base_offset_in_bytes(T_FLOAT)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_4, arrayOopDesc::base_offset_in_bytes(T_FLOAT));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load4));
+  __ access_load_at(T_FLOAT, IN_HEAP | IS_ARRAY, noreg /* ftos */, addr, noreg, noreg);
 }
 
 void TemplateTable::daload() {
@@ -809,11 +805,9 @@ void TemplateTable::daload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_DOUBLE, IN_HEAP | IS_ARRAY, noreg /* dtos */,
-                    Address(rdx, rax,
-                            Address::times_8,
-                            arrayOopDesc::base_offset_in_bytes(T_DOUBLE)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_8, arrayOopDesc::base_offset_in_bytes(T_DOUBLE));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load8));
+  __ access_load_at(T_DOUBLE, IN_HEAP | IS_ARRAY, noreg /* dtos */, addr, noreg, noreg);
 }
 
 void TemplateTable::aaload() {
@@ -821,12 +815,10 @@ void TemplateTable::aaload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  do_oop_load(_masm,
-              Address(rdx, rax,
-                      UseCompressedOops ? Address::times_4 : Address::times_ptr,
-                      arrayOopDesc::base_offset_in_bytes(T_OBJECT)),
-              rax,
-              IS_ARRAY);
+  Address addr(rdx, rax, UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                         arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+  ASAN_ONLY(asan_load(addr, UseCompressedOops ? SharedRuntime::asan_load4 : SharedRuntime::asan_load8));
+  do_oop_load(_masm, addr, rax, IS_ARRAY);
 }
 
 void TemplateTable::baload() {
@@ -834,9 +826,9 @@ void TemplateTable::baload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_BYTE, IN_HEAP | IS_ARRAY, rax,
-                    Address(rdx, rax, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_BYTE)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_BYTE));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load1));
+  __ access_load_at(T_BYTE, IN_HEAP | IS_ARRAY, rax, addr, noreg, noreg);
 }
 
 void TemplateTable::caload() {
@@ -844,9 +836,9 @@ void TemplateTable::caload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_CHAR, IN_HEAP | IS_ARRAY, rax,
-                    Address(rdx, rax, Address::times_2, arrayOopDesc::base_offset_in_bytes(T_CHAR)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_2, arrayOopDesc::base_offset_in_bytes(T_CHAR));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load2));
+  __ access_load_at(T_CHAR, IN_HEAP | IS_ARRAY, rax, addr, noreg, noreg);
 }
 
 // iload followed by caload frequent pair
@@ -870,9 +862,9 @@ void TemplateTable::saload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ access_load_at(T_SHORT, IN_HEAP | IS_ARRAY, rax,
-                    Address(rdx, rax, Address::times_2, arrayOopDesc::base_offset_in_bytes(T_SHORT)),
-                    noreg, noreg);
+  Address addr(rdx, rax, Address::times_2, arrayOopDesc::base_offset_in_bytes(T_SHORT));
+  ASAN_ONLY(asan_load(addr, SharedRuntime::asan_load2));
+  __ access_load_at(T_SHORT, IN_HEAP | IS_ARRAY, rax, addr, noreg, noreg);
 }
 
 void TemplateTable::iload(int n) {
@@ -1064,10 +1056,9 @@ void TemplateTable::iastore() {
   // rbx: index
   // rdx: array
   index_check(rdx, rbx); // prefer index in rbx
-  __ access_store_at(T_INT, IN_HEAP | IS_ARRAY,
-                     Address(rdx, rbx, Address::times_4,
-                             arrayOopDesc::base_offset_in_bytes(T_INT)),
-                     rax, noreg, noreg, noreg);
+  Address addr(rdx, rbx, Address::times_4, arrayOopDesc::base_offset_in_bytes(T_INT));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store4));
+  __ access_store_at(T_INT, IN_HEAP | IS_ARRAY, addr, rax, noreg, noreg, noreg);
 }
 
 void TemplateTable::lastore() {
@@ -1078,10 +1069,9 @@ void TemplateTable::lastore() {
   // rdx: high(value)
   index_check(rcx, rbx);  // prefer index in rbx,
   // rbx,: index
-  __ access_store_at(T_LONG, IN_HEAP | IS_ARRAY,
-                     Address(rcx, rbx, Address::times_8,
-                             arrayOopDesc::base_offset_in_bytes(T_LONG)),
-                     noreg /* ltos */, noreg, noreg, noreg);
+  Address addr(rcx, rbx, Address::times_8, arrayOopDesc::base_offset_in_bytes(T_LONG));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store8));
+  __ access_store_at(T_LONG, IN_HEAP | IS_ARRAY, addr, noreg /* ltos */, noreg, noreg, noreg);
 }
 
 
@@ -1092,10 +1082,9 @@ void TemplateTable::fastore() {
   // rbx:  index
   // rdx:  array
   index_check(rdx, rbx); // prefer index in rbx
-  __ access_store_at(T_FLOAT, IN_HEAP | IS_ARRAY,
-                     Address(rdx, rbx, Address::times_4,
-                             arrayOopDesc::base_offset_in_bytes(T_FLOAT)),
-                     noreg /* ftos */, noreg, noreg, noreg);
+  Address addr(rdx, rbx, Address::times_4, arrayOopDesc::base_offset_in_bytes(T_FLOAT));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store4));
+  __ access_store_at(T_FLOAT, IN_HEAP | IS_ARRAY, addr, noreg /* ftos */, noreg, noreg, noreg);
 }
 
 void TemplateTable::dastore() {
@@ -1105,10 +1094,9 @@ void TemplateTable::dastore() {
   // rbx:  index
   // rdx:  array
   index_check(rdx, rbx); // prefer index in rbx
-  __ access_store_at(T_DOUBLE, IN_HEAP | IS_ARRAY,
-                     Address(rdx, rbx, Address::times_8,
-                             arrayOopDesc::base_offset_in_bytes(T_DOUBLE)),
-                     noreg /* dtos */, noreg, noreg, noreg);
+  Address addr(rdx, rbx, Address::times_8, arrayOopDesc::base_offset_in_bytes(T_DOUBLE));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store8));
+  __ access_store_at(T_DOUBLE, IN_HEAP | IS_ARRAY, addr, noreg /* dtos */, noreg, noreg, noreg);
 }
 
 void TemplateTable::aastore() {
@@ -1181,10 +1169,9 @@ void TemplateTable::bastore() {
   __ jccb(Assembler::zero, L_skip);
   __ andl(rax, 1);  // if it is a T_BOOLEAN array, mask the stored value to 0/1
   __ bind(L_skip);
-  __ access_store_at(T_BYTE, IN_HEAP | IS_ARRAY,
-                     Address(rdx, rbx,Address::times_1,
-                             arrayOopDesc::base_offset_in_bytes(T_BYTE)),
-                     rax, noreg, noreg, noreg);
+  Address addr(rdx, rbx, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_BYTE));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store1));
+  __ access_store_at(T_BYTE, IN_HEAP | IS_ARRAY, addr, rax, noreg, noreg, noreg);
 }
 
 void TemplateTable::castore() {
@@ -1194,10 +1181,9 @@ void TemplateTable::castore() {
   // rbx: index
   // rdx: array
   index_check(rdx, rbx);  // prefer index in rbx
-  __ access_store_at(T_CHAR, IN_HEAP | IS_ARRAY,
-                     Address(rdx, rbx, Address::times_2,
-                             arrayOopDesc::base_offset_in_bytes(T_CHAR)),
-                     rax, noreg, noreg, noreg);
+  Address addr(rdx, rbx, Address::times_2, arrayOopDesc::base_offset_in_bytes(T_CHAR));
+  ASAN_ONLY(asan_store(addr, SharedRuntime::asan_store2));
+  __ access_store_at(T_CHAR, IN_HEAP | IS_ARRAY, addr, rax, noreg, noreg, noreg);
 }
 
 
@@ -2820,6 +2806,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   __ jcc(Assembler::notZero, notByte);
   // btos
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load1));
   __ access_load_at(T_BYTE, IN_HEAP, rax, field, noreg, noreg);
   __ push(btos);
   // Rewrite bytecode to be faster
@@ -2833,6 +2820,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ jcc(Assembler::notEqual, notBool);
 
   // ztos (same code as btos)
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load1));
   __ access_load_at(T_BOOLEAN, IN_HEAP, rax, field, noreg, noreg);
   __ push(ztos);
   // Rewrite bytecode to be faster
@@ -2846,6 +2834,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
+  ASAN_ONLY(asan_load(field, UseCompressedOops ? SharedRuntime::asan_load4 : SharedRuntime::asan_load8));
   do_oop_load(_masm, field, rax);
   __ push(atos);
   if (!is_static && rc == may_rewrite) {
@@ -2857,6 +2846,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, itos);
   __ jcc(Assembler::notEqual, notInt);
   // itos
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load4));
   __ access_load_at(T_INT, IN_HEAP, rax, field, noreg, noreg);
   __ push(itos);
   // Rewrite bytecode to be faster
@@ -2869,6 +2859,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, ctos);
   __ jcc(Assembler::notEqual, notChar);
   // ctos
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load2));
   __ access_load_at(T_CHAR, IN_HEAP, rax, field, noreg, noreg);
   __ push(ctos);
   // Rewrite bytecode to be faster
@@ -2881,6 +2872,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, stos);
   __ jcc(Assembler::notEqual, notShort);
   // stos
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load2));
   __ access_load_at(T_SHORT, IN_HEAP, rax, field, noreg, noreg);
   __ push(stos);
   // Rewrite bytecode to be faster
@@ -2895,6 +2887,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   // ltos
     // Generate code as if volatile (x86_32).  There just aren't enough registers to
     // save that information and this code is faster than the test.
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load8));
   __ access_load_at(T_LONG, IN_HEAP | MO_RELAXED, noreg /* ltos */, field, noreg, noreg);
   __ push(ltos);
   // Rewrite bytecode to be faster
@@ -2906,6 +2899,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ jcc(Assembler::notEqual, notFloat);
   // ftos
 
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load4));
   __ access_load_at(T_FLOAT, IN_HEAP, noreg /* ftos */, field, noreg, noreg);
   __ push(ftos);
   // Rewrite bytecode to be faster
@@ -2922,6 +2916,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 #endif
   // dtos
   // MO_RELAXED: for the case of volatile field, in fact it adds no extra work for the underlying implementation
+  ASAN_ONLY(asan_load(field, SharedRuntime::asan_load8));
   __ access_load_at(T_DOUBLE, IN_HEAP | MO_RELAXED, noreg /* dtos */, field, noreg, noreg);
   __ push(dtos);
   // Rewrite bytecode to be faster
@@ -3100,6 +3095,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(btos);
     if (!is_static) pop_and_check_object(obj);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store1));
     __ access_store_at(T_BYTE, IN_HEAP, field, rax, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_bputfield, bc, rbx, true, byte_no);
@@ -3115,6 +3111,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(ztos);
     if (!is_static) pop_and_check_object(obj);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store1));
     __ access_store_at(T_BOOLEAN, IN_HEAP, field, rax, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_zputfield, bc, rbx, true, byte_no);
@@ -3131,6 +3128,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
     // Store into the field
+    ASAN_ONLY(asan_store(field, UseCompressedOops ? SharedRuntime::asan_store4 : SharedRuntime::asan_store8));
     do_oop_store(_masm, field, rax);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
@@ -3146,6 +3144,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(itos);
     if (!is_static) pop_and_check_object(obj);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store4));
     __ access_store_at(T_INT, IN_HEAP, field, rax, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_iputfield, bc, rbx, true, byte_no);
@@ -3162,6 +3161,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(ctos);
     if (!is_static) pop_and_check_object(obj);
     __ access_store_at(T_CHAR, IN_HEAP, field, rax, noreg, noreg, noreg);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store2));
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_cputfield, bc, rbx, true, byte_no);
     }
@@ -3176,6 +3176,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(stos);
     if (!is_static) pop_and_check_object(obj);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store2));
     __ access_store_at(T_SHORT, IN_HEAP, field, rax, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_sputfield, bc, rbx, true, byte_no);
@@ -3192,6 +3193,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(ltos);
     if (!is_static) pop_and_check_object(obj);
     // MO_RELAXED: generate atomic store for the case of volatile field (important for x86_32)
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store8));
     __ access_store_at(T_LONG, IN_HEAP | MO_RELAXED, field, noreg /* ltos*/, noreg, noreg, noreg);
 #ifdef _LP64
     if (!is_static && rc == may_rewrite) {
@@ -3209,6 +3211,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(ftos);
     if (!is_static) pop_and_check_object(obj);
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store4));
     __ access_store_at(T_FLOAT, IN_HEAP, field, noreg /* ftos */, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_fputfield, bc, rbx, true, byte_no);
@@ -3228,6 +3231,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(dtos);
     if (!is_static) pop_and_check_object(obj);
     // MO_RELAXED: for the case of volatile field, in fact it adds no extra work for the underlying implementation
+    ASAN_ONLY(asan_store(field, SharedRuntime::asan_store8));
     __ access_store_at(T_DOUBLE, IN_HEAP | MO_RELAXED, field, noreg /* dtos */, noreg, noreg, noreg);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_dputfield, bc, rbx, true, byte_no);
@@ -4416,3 +4420,25 @@ void TemplateTable::multianewarray() {
   __ load_unsigned_byte(rbx, at_bcp(3));
   __ lea(rsp, Address(rsp, rbx, Interpreter::stackElementScale()));  // get rid of counts
 }
+
+#ifdef ADDRESS_SANITIZER
+
+void TemplateTable::asan_load(Address at, AsanLoad load) {
+  __ pusha();
+  __ push_d(xmm0);
+  __ lea(c_rarg0, at);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, load), c_rarg0);
+  __ pop_d(xmm0);
+  __ popa();
+}
+
+void TemplateTable::asan_store(Address at, AsanStore store) {
+  __ pusha();
+  __ push_d(xmm0);
+  __ lea(c_rarg0, at);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, store), c_rarg0);
+  __ pop_d(xmm0);
+  __ popa();
+}
+
+#endif

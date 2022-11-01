@@ -31,6 +31,7 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "asan/asan.hpp"
 
 namespace metaspace {
 
@@ -140,6 +141,7 @@ public:
            word_size <= MaxWordSize, "bad block size");
     const int index = index_for_word_size(word_size);
     Block* old_head = _blocks[index];
+    Asan::unpoison_memory_region(p, sizeof(Block));
     Block* new_head = new(p)Block(old_head, word_size);
     _blocks[index] = new_head;
     _counter.add(word_size);
@@ -162,6 +164,7 @@ public:
       _blocks[index] = b->_next;
       _counter.sub(real_word_size);
       *p_real_word_size = real_word_size;
+      Asan::poison_memory_region(b, sizeof(Block));
       return (MetaWord*)b;
     } else {
       *p_real_word_size = 0;

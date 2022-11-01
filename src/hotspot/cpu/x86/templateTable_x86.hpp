@@ -43,4 +43,12 @@
                                         Register obj, Register off, Register flags);
   static void fast_storefield_helper(Address field, Register rax);
 
+#ifdef ADDRESS_SANITIZER
+  using AsanStore = void (*)(address);
+  using AsanLoad = void (*)(address);
+
+  static void asan_load(Address at, AsanLoad load);
+  static void asan_store(Address at, AsanStore store);
+#endif
+
 #endif // CPU_X86_TEMPLATETABLE_X86_HPP

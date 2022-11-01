@@ -47,6 +47,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
+#include "asan/asan.hpp"
 
 namespace metaspace {
 
@@ -234,6 +235,8 @@ VirtualSpaceNode::VirtualSpaceNode(ReservedSpace rs, bool owns_rs, CommitLimiter
 
   assert_is_aligned(_base, chunklevel::MAX_CHUNK_BYTE_SIZE);
   assert_is_aligned(_word_size, chunklevel::MAX_CHUNK_WORD_SIZE);
+
+  Asan::poison_memory_region(rs.base(), rs.size());
 }
 
 // Create a node of a given size (it will create its own space).
@@ -268,6 +271,8 @@ VirtualSpaceNode::~VirtualSpaceNode() {
   UL(debug, ": dies.");
   if (_owns_rs) {
     _rs.release();
+  } else {
+    Asan::poison_memory_region(_rs.base(), _rs.size());
   }
 
   // Update counters in vslist

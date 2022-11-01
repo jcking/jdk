@@ -54,6 +54,18 @@ class oopDesc;
 #define ATTRIBUTE_FLATTEN
 #endif
 
+#ifndef ATTRIBUTE_ARTIFICIAL
+#define ATTRIBUTE_ARTIFICIAL
+#endif
+
+#ifndef LIKELY
+#define LIKELY(condition) (condition)
+#endif
+
+#ifndef UNLIKELY
+#define UNLIKELY(condition) (condition)
+#endif
+
 // These are #defines to selectively turn on/off the Print(Opto)Assembly
 // capabilities. Choices should be led by a tradeoff between
 // code size and improved supportability.

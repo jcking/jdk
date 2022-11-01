@@ -31,6 +31,7 @@
 #include "memory/metaspace/counters.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "asan/asan.hpp"
 
 namespace metaspace {
 
@@ -349,6 +350,7 @@ public:
   void add_block(MetaWord* p, size_t word_size) {
     DEBUG_ONLY(zap_range(p, word_size));
     assert(word_size >= MinWordSize, "invalid block size " SIZE_FORMAT, word_size);
+    Asan::unpoison_memory_region(p, sizeof(Node));
     Node* n = new(p) Node(word_size);
     if (_root == NULL) {
       _root = n;
@@ -386,6 +388,7 @@ public:
       _counter.sub(n->_word_size);
 
       DEBUG_ONLY(zap_range(p, n->_word_size));
+      Asan::poison_memory_region(p, sizeof(Node));
       return p;
     }
     return NULL;
