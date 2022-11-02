@@ -237,6 +237,10 @@ const char* ClassPathEntry::copy_path(const char* path) {
   return copy;
 }
 
+ClassPathDirEntry::~ClassPathDirEntry() {
+  FREE_C_HEAP_ARRAY(char, _dir);
+}
+
 ClassFileStream* ClassPathDirEntry::open_stream(JavaThread* current, const char* name) {
   // construct full path name
   assert((_dir != NULL) && (name != NULL), "sanity");
@@ -652,6 +656,9 @@ void ClassLoader::setup_bootstrap_search_path_impl(JavaThread* current, const ch
         } else {
           // It's an exploded build.
           ClassPathEntry* new_entry = create_class_path_entry(current, path, &st, false, false);
+          if (new_entry != NULL) {
+            delete new_entry;
+          }
         }
       } else {
         // If path does not exist, exit
