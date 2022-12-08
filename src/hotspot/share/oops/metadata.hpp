@@ -35,6 +35,9 @@ class Metadata : public MetaspaceObj {
   NOT_PRODUCT(int _valid;)
  public:
   NOT_PRODUCT(Metadata() : _valid(0) {})
+
+  virtual ~Metadata() = default;
+
   NOT_PRODUCT(bool is_valid() const { return _valid == 0; })
 
   int identity_hash()                { return (int)(uintptr_t)this; }

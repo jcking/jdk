@@ -28,8 +28,10 @@
 #include "classfile/classLoaderData.hpp"
 #include "memory/classLoaderMetaspace.hpp"
 #include "oops/array.inline.hpp"
+#include "oops/metadata.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include <type_traits>
 
 class MetadataFactory : AllStatic {
  public:
@@ -64,12 +66,17 @@ class MetadataFactory : AllStatic {
   static void free_metadata(ClassLoaderData* loader_data, T md) {
     if (md != NULL) {
       assert(loader_data != NULL, "shouldn't pass null");
-      int size = md->size();
       // Call metadata's deallocate function which will call deallocate fields
       assert(!md->on_stack(), "can't deallocate things on stack");
       assert(!md->is_shared(), "cannot deallocate if in shared spaces");
       md->deallocate_contents(loader_data);
-      loader_data->metaspace_non_null()->deallocate((MetaWord*)md, size, md->is_klass());
+      int size = md->size();
+      bool is_klass = md->is_klass();
+      using U = typename std::remove_cv<typename std::remove_pointer<T>::type>::type;
+      if (std::is_base_of<Metadata, U>::value) {
+        md->~U();
+      }
+      loader_data->metaspace_non_null()->deallocate((MetaWord*)md, size, is_klass);
     }
   }
 };

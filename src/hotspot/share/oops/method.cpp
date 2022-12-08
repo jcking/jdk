@@ -144,8 +144,6 @@ void Method::release_C_heap_structures() {
 #if INCLUDE_JVMCI
     FailedSpeculation::free_failed_speculations(method_data()->get_failed_speculations_address());
 #endif
-    // Destroy MethodData
-    method_data()->~MethodData();
   }
 }
 
