@@ -28,6 +28,7 @@
 #include "memory/arena.hpp"
 #include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "sanitizers/address.h"
 
 class InstanceKlass;
 class Klass;
@@ -197,6 +198,7 @@ class HandleArea: public Arena {
  private:
   oop* real_allocate_handle(oop obj) {
     oop* handle = (oop*)internal_amalloc(oopSize);
+    ASAN_UNPOISON_MEMORY_REGION(handle, oopSize);
     *handle = obj;
     return handle;
   }

@@ -26,7 +26,10 @@
 #define SHARE_LIBADT_VECTSET_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/arena.hpp"
 #include "utilities/copy.hpp"
+
+#include <algorithm>
 
 // Vector Sets
 
@@ -52,8 +55,31 @@ private:
   void grow(uint new_word_capacity);
 public:
   VectorSet();
+
+  VectorSet(const VectorSet&) = delete;
+
+  VectorSet(VectorSet&& other) : _size(other._size), _data(other._data),
+                                 _data_size(other._data_size), _set_arena(other._set_arena) {
+    other._size = 0;
+    other._data = nullptr;
+    other._data_size = 0;
+  }
+
   VectorSet(Arena* arena);
-  ~VectorSet() {}
+
+  ~VectorSet() {
+    FREE_ARENA_ARRAY(_set_arena, uint32_t, _data, _data_size);
+  }
+
+  VectorSet& operator=(const VectorSet&) = delete;
+
+  VectorSet& operator=(VectorSet&& other) {
+    std::swap(_size, other._size);
+    std::swap(_data, other._data);
+    std::swap(_data_size, other._data_size);
+    std::swap(_set_arena, other._set_arena);
+    return *this;
+  }
 
   void insert(uint elem);
   bool is_empty() const;

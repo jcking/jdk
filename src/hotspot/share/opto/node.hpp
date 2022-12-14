@@ -245,7 +245,7 @@ public:
   // Delete is a NOP
   void operator delete( void *ptr ) {}
   // Fancy destructor; eagerly attempt to reclaim Node numberings and storage
-  void destruct(PhaseValues* phase);
+  void destruct(PhaseValues* phase, const char* file = __builtin_FILE(), int line = __builtin_LINE());
 
   // Create a new Node.  Required is the number is of inputs required for
   // semantic correctness.
@@ -1529,6 +1529,10 @@ public:
     clear();
   }
 
+  ~Node_Array() {
+    FREE_ARENA_ARRAY(_a, Node*, _nodes, _max);
+  }
+
   Node_Array(Node_Array* na) : _a(na->_a), _max(na->_max), _nodes(na->_nodes) {}
   Node *operator[] ( uint i ) const // Lookup, or NULL for not mapped
   { return (i<_max) ? _nodes[i] : (Node*)NULL; }
@@ -1694,6 +1698,10 @@ public:
     _inodes = NEW_ARENA_ARRAY( _a, INode, max );
     _inode_max = _inodes + max;
     _inode_top = _inodes - 1; // stack is empty
+  }
+
+  ~Node_Stack() {
+    FREE_ARENA_ARRAY(_a, INode, _inodes, _inode_max - _inodes);
   }
 
   void pop() {

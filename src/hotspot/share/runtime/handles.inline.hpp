@@ -92,9 +92,13 @@ inline void HandleMark::pop_and_restore() {
     assert(_area->size_in_bytes() == size_in_bytes(), "Sanity check");
   }
   // Roll back arena to saved top markers
+  char* replaced_hwm = _area->_hwm;
+
   _area->_chunk = _chunk;
   _area->_hwm = _hwm;
   _area->_max = _max;
+  // Poison the rolled back memory region. Future allocations will unpoison it.
+  ASAN_POISON_MEMORY_REGION(_hwm, (_chunk->contains(replaced_hwm) ? replaced_hwm : _max) - _hwm);
   debug_only(_area->_handle_mark_nesting--);
 }
 

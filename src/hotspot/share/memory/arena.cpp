@@ -29,6 +29,7 @@
 #include "runtime/os.hpp"
 #include "runtime/task.hpp"
 #include "runtime/threadCritical.hpp"
+#include "sanitizers/address.h"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
@@ -117,11 +118,11 @@ class ChunkPool {
 
   // Given a (inner payload) size, return the pool responsible for it, or NULL if the size is non-standard
   static ChunkPool* get_pool_for_size(size_t size) {
-    for (int i = 0; i < _num_pools; i++) {
+    /*for (int i = 0; i < _num_pools; i++) {
       if (_pools[i]._size == size) {
         return _pools + i;
       }
-    }
+    }*/
     return NULL;
   }
 
@@ -183,6 +184,8 @@ void* Chunk::operator new (size_t sizeofChunk, AllocFailType alloc_failmode, siz
   if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
     vm_exit_out_of_memory(bytes, OOM_MALLOC_ERROR, "Chunk::new");
   }
+  // Poison the newly allocated chunk payload, see diagram above.
+  ASAN_POISON_MEMORY_REGION(((char*) p) + ARENA_ALIGN(sizeofChunk), length);
   // We rely on arena alignment <= malloc alignment.
   assert(is_aligned(p, ARENA_AMALLOC_ALIGNMENT), "Chunk start address misaligned.");
   return p;
@@ -193,6 +196,9 @@ void Chunk::operator delete(void* p) {
   Chunk* c = (Chunk*)p;
   ChunkPool* pool = ChunkPool::get_pool_for_size(c->length());
   if (pool != NULL) {
+    // Poison the newly deallocated chunk payload, see diagram above. We only need to poison when
+    // returning to the pool. ASan will handle poisoning internally during free.
+    ASAN_POISON_MEMORY_REGION(c->bottom(), c->length());
     pool->free(c);
   } else {
     ThreadCritical tc;  // Free chunks under TC lock so that NMT adjustment is stable.
@@ -329,9 +335,9 @@ void* Arena::grow(size_t x, AllocFailType alloc_failmode) {
 
 
 // Reallocate storage in Arena.
-void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFailType alloc_failmode) {
+void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFailType alloc_failmode, const char* file, int line) {
   if (new_size == 0) {
-    Afree(old_ptr, old_size); // like realloc(3)
+    Afree(old_ptr, old_size, file, line); // like realloc(3)
     return NULL;
   }
   if (old_ptr == NULL) {
@@ -343,6 +349,8 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
   if( new_size <= old_size ) {  // Shrink in-place
     if( c_old+old_size == _hwm) // Attempt to free the excess bytes
       _hwm = c_old+new_size;    // Adjust hwm
+    // Poison the now unused upper part of the memory region.
+    ASAN_POISON_MEMORY_REGION(c_old + new_size, old_size - new_size);
     return c_old;
   }
 
@@ -353,6 +361,8 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
   if( (c_old+old_size == _hwm) &&       // Adjusting recent thing
       (c_old+corrected_new_size <= _max) ) {      // Still fits where it sits
     _hwm = c_old+corrected_new_size;      // Adjust hwm
+    // Unpoison the now used upper part of the memory region.
+    ASAN_UNPOISON_MEMORY_REGION(c_old + old_size, new_size - old_size);
     return c_old;               // Return old pointer
   }
 
@@ -362,7 +372,7 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
     return NULL;
   }
   memcpy( new_ptr, c_old, old_size );
-  Afree(c_old,old_size);        // Mostly done to keep stats accurate
+  Afree(c_old,old_size, file, line);        // Mostly done to keep stats accurate
   return new_ptr;
 }
 

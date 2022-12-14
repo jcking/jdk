@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/javaThread.hpp"
+#include "sanitizers/address.h"
 
 // The resource area holds temporary data structures in the VM.
 // The actual allocation areas are thread local. Typical usage:
@@ -136,6 +137,9 @@ public:
         assert(limit >= _hwm, "Sanity check: non-negative memset size");
         memset(_hwm, badResourceValue, limit - _hwm);
       }
+
+      // Poison the rolled back memory region. Future allocations will unpoison it.
+      ASAN_POISON_MEMORY_REGION(_hwm, (_chunk->contains(replaced_hwm) ? replaced_hwm : _max) - _hwm);
     } else {
       // No allocations. Nothing to rollback. Check it.
       assert(_chunk == state._chunk, "Sanity check: idempotence");

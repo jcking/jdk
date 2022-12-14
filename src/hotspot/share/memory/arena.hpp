@@ -27,6 +27,8 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/globals.hpp"
+#include "sanitizers/address.h"
+#include "sanitizers/common.h"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -122,30 +124,48 @@ protected:
   // Fast allocate in the arena.  Common case aligns to the size of jlong which is 64 bits
   // on both 32 and 64 bit platforms. Required for atomic jlong operations on 32 bits.
   void* Amalloc(size_t x, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-    x = ARENA_ALIGN(x);  // note for 32 bits this should align _hwm as well.
     // Amalloc guarantees 64-bit alignment and we need to ensure that in case the preceding
     // allocation was AmallocWords. Only needed on 32-bit - on 64-bit Amalloc and AmallocWords are
     // identical.
     assert(is_aligned(_max, ARENA_AMALLOC_ALIGNMENT), "chunk end unaligned?");
     NOT_LP64(_hwm = ARENA_ALIGN(_hwm));
-    return internal_amalloc(x, alloc_failmode);
+    void* ptr = internal_amalloc(ARENA_ALIGN(x), alloc_failmode);
+    if (ptr != nullptr) {
+      ASAN_VERIFY_REGION_IS_POISONED(ptr, x);
+      ASAN_UNPOISON_MEMORY_REGION(ptr, x);
+    }
+    return ptr;
   }
 
   // Allocate in the arena, assuming the size has been aligned to size of pointer, which
   // is 4 bytes on 32 bits, hence the name.
   void* AmallocWords(size_t x, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
     assert(is_aligned(x, BytesPerWord), "misaligned size");
-    return internal_amalloc(x, alloc_failmode);
+    void* ptr = internal_amalloc(x, alloc_failmode);
+    if (ptr != nullptr) {
+      ASAN_VERIFY_REGION_IS_POISONED(ptr, x);
+      ASAN_UNPOISON_MEMORY_REGION(ptr, x);
+    }
+    return ptr;
   }
 
   // Fast delete in area.  Common case is: NOP (except for storage reclaimed)
-  bool Afree(void *ptr, size_t size) {
+  bool Afree(void *ptr, size_t size, const char* file = __builtin_FILE(), int line = __builtin_LINE()) {
     if (ptr == NULL) {
       return true; // as with free(3), freeing NULL is a noop.
     }
 #ifdef ASSERT
     if (ZapResourceArea) memset(ptr, badResourceValue, size); // zap freed memory
 #endif
+    // Poison the freed memory region. If it was the last allocation, future allocations will
+    // unpoison it.
+    if (!__asan_report_present()) {
+      fprintf(stderr, "%s:%d: freeing memory region [0x%" PRIxPTR "..0x%" PRIxPTR ")\n", file, line, reinterpret_cast<uintptr_t>(ptr), reinterpret_cast<uintptr_t>(ptr) + size);
+      fflush(stderr);
+      SANITIZER_PRINT_STACK_TRACE();
+    }
+    ASAN_VERIFY_REGION_IS_UNPOISONED(ptr, size);
+    ASAN_POISON_MEMORY_REGION(ptr, size);
     if (((char*)ptr) + size == _hwm) {
       _hwm = (char*)ptr;
       return true;
@@ -156,7 +176,7 @@ protected:
   }
 
   void *Arealloc( void *old_ptr, size_t old_size, size_t new_size,
-      AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+      AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM, const char* file = __builtin_FILE(), int line = __builtin_LINE());
 
   // Move contents of this arena into an empty arena
   Arena *move_contents(Arena *empty_arena);

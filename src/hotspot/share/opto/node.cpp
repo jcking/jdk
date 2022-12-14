@@ -593,7 +593,7 @@ void Node::setup_is_top() {
 
 //------------------------------~Node------------------------------------------
 // Fancy destructor; eagerly attempt to reclaim Node numberings and storage
-void Node::destruct(PhaseValues* phase) {
+void Node::destruct(PhaseValues* phase, const char* file, int line) {
   Compile* compile = (phase != NULL) ? phase->C : Compile::current();
   if (phase != NULL && phase->is_IterGVN()) {
     phase->is_IterGVN()->_worklist.remove(this);
@@ -625,23 +625,22 @@ void Node::destruct(PhaseValues* phase) {
 
   // Free the output edge array
   if (out_edge_size > 0) {
-    compile->node_arena()->Afree(out_array, out_edge_size);
+    compile->node_arena()->Afree(out_array, out_edge_size, file, line);
   }
+
+  void* to_free = nullptr;
+  size_t to_free_size = 0;
 
   // Free the input edge array and the node itself
   if( edge_end == (char*)this ) {
     // It was; free the input array and object all in one hit
-#ifndef ASSERT
-    compile->node_arena()->Afree(_in,edge_size+node_size);
-#endif
+    to_free = _in;
+    to_free_size = edge_size + node_size;
   } else {
     // Free just the input array
     compile->node_arena()->Afree(_in,edge_size);
-
-    // Free just the object
-#ifndef ASSERT
-    compile->node_arena()->Afree(this,node_size);
-#endif
+    to_free = this;
+    to_free_size = node_size;
   }
   if (is_macro()) {
     compile->remove_macro_node(this);
@@ -665,13 +664,9 @@ void Node::destruct(PhaseValues* phase) {
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->unregister_potential_barrier_node(this);
-#ifdef ASSERT
-  // We will not actually delete the storage, but we'll make the node unusable.
-  *(address*)this = badAddress;  // smash the C++ vtbl, probably
-  _in = _out = (Node**) badAddress;
-  _max = _cnt = _outmax = _outcnt = 0;
-  compile->remove_modified_node(this);
-#endif
+  if (to_free) {
+    compile->node_arena()->Afree(to_free, to_free_size, file, line);
+  }
 }
 
 //------------------------------grow-------------------------------------------

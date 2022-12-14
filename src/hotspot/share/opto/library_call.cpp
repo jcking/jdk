@@ -1637,6 +1637,7 @@ bool LibraryCallKit::inline_string_char_access(bool is_store) {
     set_sp(old_sp);
     return false;
   }
+  discard_for_igvn(old_map);
   old_map->destruct(&_gvn);
   if (is_store) {
     access_store_at(value, adr, TypeAryPtr::BYTES, ch, TypeInt::CHAR, T_CHAR, IN_HEAP | MO_UNORDERED | C2_MISMATCHED);
@@ -2352,6 +2353,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
+  discard_for_igvn(old_map);
   old_map->destruct(&_gvn);
   assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
@@ -2603,6 +2605,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
     return false;
   }
 
+  discard_for_igvn(old_map);
   old_map->destruct(&_gvn);
 
   // For CAS, unlike inline_unsafe_access, there seems no point in
