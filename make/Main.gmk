@@ -735,6 +735,13 @@ ifeq ($(JCOV_ENABLED), true)
   ))
 endif
 
+ifeq ($(FUZZER_ENABLED), true)
+  $(eval $(call SetupTarget, fuzz, \
+      MAKEFILE := hotspot/fuzz/FuzzImage, \
+      DEPS := exploded-image, \
+  ))
+endif
+
 ################################################################################
 # Bundles
 

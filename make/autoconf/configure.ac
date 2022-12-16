@@ -215,6 +215,9 @@ JDKOPT_SETUP_CODE_COVERAGE
 # AddressSanitizer
 JDKOPT_SETUP_ADDRESS_SANITIZER
 
+# Fuzzer
+JDKOPT_SETUP_FUZZER
+
 ###############################################################################
 #
 # Check dependencies for external and internal libraries.

@@ -445,6 +445,32 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
   AC_SUBST(ASAN_ENABLED)
 ])
 
+###############################################################################
+#
+# AddressSanitizer
+#
+AC_DEFUN_ONCE([JDKOPT_SETUP_FUZZER],
+[
+  UTIL_ARG_ENABLE(NAME: fuzzer, DEFAULT: false, RESULT: FUZZER_ENABLED,
+      DESC: [enable Fuzzer],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if Fuzzer (fuzzer) is available])
+        if test "x$TOOLCHAIN_TYPE" = "xclang"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
+        FUZZER_CFLAGS="-fsanitize=fuzzer"
+        FUZZER_LDFLAGS="-fsanitize=fuzzer-no-link"
+        JVM_CFLAGS="$JVM_CFLAGS $FUZZER_CFLAGS"
+        JVM_LDFLAGS="$JVM_LDFLAGS $FUZZER_LDFLAGS"
+      ])
+  AC_SUBST(FUZZER_ENABLED)
+])
+
 ################################################################################
 #
 # Static build support.  When enabled will generate static
