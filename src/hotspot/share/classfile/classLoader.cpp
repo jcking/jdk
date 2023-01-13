@@ -49,6 +49,7 @@
 #include "logging/logStream.hpp"
 #include "logging/logTag.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/malloc.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -1420,6 +1421,37 @@ char* ClassLoader::lookup_vm_options() {
   const char *jimage_version = get_jimage_version_string();
   char *options = lookup_vm_resource(JImage_file, jimage_version, "jdk/internal/vm/options");
   return options;
+}
+
+// Lookup VM options embedded in the modules jimage file
+char* ClassLoader::lookup_vm_options(PreprocessedArguments* preproc_args, size_t* size) {
+  jint error;
+  char modules_path[JVM_MAXPATHLEN];
+  const char* fileSep = os::file_separator();
+
+  // Initialize jimage library entry points
+  load_jimage_library();
+
+  jio_snprintf(modules_path, JVM_MAXPATHLEN, "%s%slib%smodules", Arguments::get_java_home(), fileSep, fileSep);
+  JImage_file = (*JImageOpen)(modules_path, &error);
+  if (JImage_file == nullptr) {
+    return nullptr;
+  }
+
+  jlong ssize;
+  JImageLocationRef location = (*JImageFindResource)(JImage_file, "java.base", get_jimage_version_string(), "jdk/internal/vm/options", &ssize);
+  if (location == nullptr) {
+    return nullptr;
+  }
+  size_t buffer_len = static_cast<size_t>(ssize);
+  char* buffer = preproc_args->allocate_and_own(buffer_len + 1);
+  if (buffer == nullptr) {
+    vm_exit_out_of_memory(buffer_len + 1, OOM_MALLOC_ERROR, "malloc");
+  }
+  buffer_len = static_cast<size_t>((*JImageGetResource)(JImage_file, location, buffer, ssize));
+  buffer[buffer_len] = '\0';
+  *size = buffer_len;
+  return buffer;
 }
 
 bool ClassLoader::is_module_observable(const char* module_name) {

@@ -55,6 +55,18 @@ class oopDesc;
 #define ATTRIBUTE_FLATTEN
 #endif
 
+#ifndef ATTRIBUTE_PURE
+#define ATTRIBUTE_PURE
+#endif
+
+#ifndef PREDICT_FALSE
+#define PREDICT_FALSE(condition) (condition)
+#endif
+
+#ifndef PREDICT_TRUE
+#define PREDICT_TRUE(condition) (condition)
+#endif
+
 // These are #defines to selectively turn on/off the Print(Opto)Assembly
 // capabilities. Choices should be led by a tradeoff between
 // code size and improved supportability.

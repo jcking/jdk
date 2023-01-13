@@ -635,4 +635,10 @@
 #define NOT_CDS_JAVA_HEAP_RETURN_(code) { return code; }
 #endif
 
+#if defined(__has_builtin)
+#define HAS_BUILTIN(x) __has_builtin(x)
+#else
+#define HAS_BUILTIN(x) 0
+#endif
+
 #endif // SHARE_UTILITIES_MACROS_HPP

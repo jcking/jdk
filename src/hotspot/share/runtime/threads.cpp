@@ -50,6 +50,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/malloc.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
@@ -62,6 +63,7 @@
 #include "runtime/flags/jvmFlagLimit.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -408,49 +410,60 @@ void Threads::initialize_jsr292_core_classes(TRAPS) {
 jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   extern void JDK_Version_init();
 
-  // Preinitialize version info.
-  VM_Version::early_initialize();
-
   // Check version
   if (!is_supported_jni_version(args->version)) return JNI_EVERSION;
 
-  // Initialize library-based TLS
-  ThreadLocalStorage::init();
+  Malloc::initialize();
 
-  // Initialize the output stream module
-  ostream_init();
-
-  // Process java launcher properties.
-  Arguments::process_sun_java_launcher_properties(args);
-
-  // Initialize the os module
-  os::init();
-
-  MACOS_AARCH64_ONLY(os::current_thread_enable_wx(WXWrite));
-
-  // Record VM creation timing statistics
   TraceVmCreationTime create_vm_timer;
-  create_vm_timer.start();
 
-  // Initialize system properties.
-  Arguments::init_system_properties();
+  {
+    Arguments::Preprocessed preproc_args;
 
-  // So that JDK version can be used as a discriminator when parsing arguments
-  JDK_Version_init();
+    jint preprocess_result = Arguments::preprocess(args, &preproc_args);
+    if (preprocess_result != JNI_OK) return preprocess_result;
 
-  // Update/Initialize System properties after JDK version number is known
-  Arguments::init_version_specific_system_properties();
+    jint c_heap_result = CHeap::initialize(preproc_args.native_memory_tracking(),
+                                           preproc_args.malloc_limit());
+    if (c_heap_result != JNI_OK) return c_heap_result;
 
-  // Make sure to initialize log configuration *before* parsing arguments
-  LogConfiguration::initialize(create_vm_timer.begin_time());
+    // Preinitialize version info.
+    VM_Version::early_initialize();
 
-  // Parse arguments
-  // Note: this internally calls os::init_container_support()
-  jint parse_result = Arguments::parse(args);
-  if (parse_result != JNI_OK) return parse_result;
+    // Initialize library-based TLS
+    ThreadLocalStorage::init();
 
-  // Initialize NMT right after argument parsing to keep the pre-NMT-init window small.
-  MemTracker::initialize();
+    // Initialize the output stream module
+    ostream_init();
+
+    // Process java launcher properties.
+    Arguments::process_sun_java_launcher_properties(args);
+
+    // Initialize the os module
+    os::init();
+
+    MACOS_AARCH64_ONLY(os::current_thread_enable_wx(WXWrite));
+
+    // Record VM creation timing statistics
+    create_vm_timer.start();
+
+    // Initialize system properties.
+    Arguments::init_system_properties();
+
+    // So that JDK version can be used as a discriminator when parsing arguments
+    JDK_Version_init();
+
+    // Update/Initialize System properties after JDK version number is known
+    Arguments::init_version_specific_system_properties();
+
+    // Make sure to initialize log configuration *before* parsing arguments
+    LogConfiguration::initialize(create_vm_timer.begin_time());
+
+    // Parse arguments
+    // Note: this internally calls os::init_container_support()
+    jint parse_result = Arguments::parse(preproc_args);
+    if (parse_result != JNI_OK) return parse_result;
+  }
 
   os::init_before_ergo();
 

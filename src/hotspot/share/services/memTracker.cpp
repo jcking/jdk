@@ -57,8 +57,6 @@ void MemTracker::initialize() {
 
   NMT_TrackingLevel level = NMTUtil::parse_tracking_level(NativeMemoryTracking);
   // Should have been validated before in arguments.cpp
-  assert(level == NMT_off || level == NMT_summary || level == NMT_detail,
-         "Invalid setting for NativeMemoryTracking (%s)", NativeMemoryTracking);
 
   // Memory type is encoded into tracking header as a byte field,
   // make sure that we don't overflow it.
@@ -92,6 +90,28 @@ void MemTracker::initialize() {
     NMTPreInit::print_state(&ls);
     ls.cr();
   }
+}
+
+void MemTracker::initialize(NMT_TrackingLevel level, const MallocLimits& limits) {
+  assert(level == NMT_off || level == NMT_summary || level == NMT_detail,
+         "Invalid setting for NativeMemoryTracking (%s)", NativeMemoryTracking);
+
+  // Memory type is encoded into tracking header as a byte field,
+  // make sure that we don't overflow it.
+  STATIC_ASSERT(mt_number_of_types <= max_jubyte);
+
+  if (level > NMT_off) {
+    if (!MallocTracker::initialize(level, limits) ||
+        !VirtualMemoryTracker::initialize(level) ||
+        !ThreadStackTracker::initialize(level)) {
+      assert(false, "NMT initialization failed");
+      level = NMT_off;
+      log_warning(nmt)("NMT initialization failed. NMT disabled.");
+      return;
+    }
+  }
+
+  _tracking_level = level;
 }
 
 void Tracker::record(address addr, size_t size) {

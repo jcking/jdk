@@ -35,6 +35,9 @@
 #include "utilities/debug.hpp"
 #include "utilities/vmEnums.hpp"
 
+#include <cstddef>
+#include <cstring>
+
 // Arguments parses the command line and recognizes options
 
 class JVMFlag;
@@ -58,6 +61,20 @@ struct LegacyGCLogging {
     const char* file;        // NULL -> stdout
     int lastFlag;            // 0 not set; 1 -> -verbose:gc; 2 -> -Xloggc
 };
+
+struct MallocLimits final {
+  size_t total;
+  size_t per_type[mt_number_of_types];
+};
+
+inline bool operator==(const MallocLimits& lhs, const MallocLimits& rhs) {
+  return lhs.total == rhs.total &&
+         std::memcmp(lhs.per_type, rhs.per_type, sizeof(lhs.per_type[0]) * mt_number_of_types) == 0;
+}
+
+inline bool operator!=(const MallocLimits& lhs, const MallocLimits& rhs) {
+  return !(lhs == rhs);
+}
 
 // PathString is used as:
 //  - the underlying value for a SystemProperty
@@ -230,16 +247,41 @@ class AgentLibraryList {
   }
 };
 
-// Helper class for controlling the lifetime of JavaVMInitArgs objects.
-class ScopedVMInitArgs;
+class Arguments final : public AllStatic {
+ private:
+  class Preprocessor;
+  class Parser;
 
-class Arguments : AllStatic {
   friend class VMStructs;
   friend class JvmtiExport;
   friend class CodeCacheExtensions;
   friend class ArgumentsTest;
   friend class LargeOptionsTest;
+  friend class Preprocessor;
+  friend class Parser;
+
  public:
+  class Preprocessed final : public StackObj {
+   private:
+    friend class Arguments;
+
+    void* _impl = nullptr;
+
+   public:
+    Preprocessed() = default;
+
+    Preprocessed(const Preprocessed&) = delete;
+    Preprocessed(Preprocessed&&) = delete;
+    Preprocessed& operator=(const Preprocessed&) = delete;
+    Preprocessed& operator=(Preprocessed&&) = delete;
+
+    ~Preprocessed();
+
+    const char* native_memory_tracking() const;
+
+    const char* malloc_limit() const;
+  };
+
   // Operation modi
   enum Mode {
     _int,       // corresponds to -Xint
@@ -483,8 +525,11 @@ class Arguments : AllStatic {
 
  public:
   static int num_archives(const char* archive_path) NOT_CDS_RETURN_(0);
+
+  static jint preprocess(const JavaVMInitArgs* args, Preprocessed* preproc_args);
+
   // Parses the arguments, first phase
-  static jint parse(const JavaVMInitArgs* args);
+  static jint parse(const Preprocessed& preproc_args);
   // Parse a string for a unsigned integer.  Returns true if value
   // is an unsigned integer greater than or equal to the minimum
   // parameter passed and returns the value in uintx_arg.  Returns
@@ -660,6 +705,8 @@ class Arguments : AllStatic {
   // 4) If option is malformed, it will exit the VM.
   // For (2) and (3), limits not affected by the switch will be set to 0.
   static void parse_malloc_limits(size_t* total_limit, size_t limits[mt_number_of_types]);
+
+  static bool parse_malloc_limits(const char* str, MallocLimits* limits);
 
   DEBUG_ONLY(static bool verify_special_jvm_flags(bool check_globals);)
 };

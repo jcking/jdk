@@ -25,6 +25,7 @@
 #ifndef SHARE_SERVICES_MEMTRACKER_HPP
 #define SHARE_SERVICES_MEMTRACKER_HPP
 
+#include "runtime/arguments.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/threadCritical.hpp"
 #include "services/mallocTracker.hpp"
@@ -74,6 +75,7 @@ class MemTracker : AllStatic {
   //  - Can only be called once.
   //  - NativeMemoryTracking must be validated beforehand.
   static void initialize();
+  static void initialize(NMT_TrackingLevel level, const MallocLimits& limits);
 
   // Returns true if NMT had been initialized.
   static bool is_initialized()  {

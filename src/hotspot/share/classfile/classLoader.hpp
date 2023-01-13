@@ -42,6 +42,7 @@
 class JImageFile;
 class ClassFileStream;
 class PackageEntry;
+class PreprocessedArguments;
 template <typename T> class GrowableArray;
 
 class ClassPathEntry : public CHeapObj<mtClass> {
@@ -373,6 +374,7 @@ class ClassLoader: AllStatic {
 #endif
 
   static char* lookup_vm_options();
+  static char* lookup_vm_options(PreprocessedArguments* preproc_args, size_t* size);
 
   // Determines if the named module is present in the
   // modules jimage file or in the exploded modules directory.

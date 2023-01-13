@@ -83,6 +83,31 @@ void MallocMemorySummary::initialize() {
   initialize_limit_handling();
 }
 
+void MallocMemorySummary::initialize(const MallocLimits& limits) {
+  assert(sizeof(_snapshot) >= sizeof(MallocMemorySnapshot), "Sanity Check");
+  // Uses placement new operator to initialize static area.
+  ::new ((void*)_snapshot)MallocMemorySnapshot();
+
+  _total_limit = limits.total;
+  std::memcpy(_limits_per_category, limits.per_type, sizeof(limits.per_type[0]) * mt_number_of_types);
+
+  if (_total_limit > 0) {
+    log_info(nmt)("MallocLimit: total limit: " SIZE_FORMAT "%s",
+                  byte_size_in_proper_unit(_total_limit),
+                  proper_unit_for_byte_size(_total_limit));
+  } else {
+    for (int i = 0; i < mt_number_of_types; i ++) {
+      size_t catlim = _limits_per_category[i];
+      if (catlim > 0) {
+        log_info(nmt)("MallocLimit: category \"%s\" limit: " SIZE_FORMAT "%s",
+                      NMTUtil::flag_to_name((MEMFLAGS)i),
+                      byte_size_in_proper_unit(catlim),
+                      proper_unit_for_byte_size(catlim));
+      }
+    }
+  }
+}
+
 void MallocMemorySummary::initialize_limit_handling() {
   // Initialize limit handling.
   Arguments::parse_malloc_limits(&_total_limit, _limits_per_category);
@@ -138,6 +163,17 @@ void MallocMemorySummary::print_limits(outputStream* st) {
 bool MallocTracker::initialize(NMT_TrackingLevel level) {
   if (level >= NMT_summary) {
     MallocMemorySummary::initialize();
+  }
+
+  if (level == NMT_detail) {
+    return MallocSiteTable::initialize();
+  }
+  return true;
+}
+
+bool MallocTracker::initialize(NMT_TrackingLevel level, const MallocLimits& limits) {
+  if (level >= NMT_summary) {
+    MallocMemorySummary::initialize(limits);
   }
 
   if (level == NMT_detail) {

@@ -27,6 +27,7 @@
 #define SHARE_SERVICES_MALLOCTRACKER_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/threadCritical.hpp"
 #include "services/mallocHeader.hpp"
@@ -239,6 +240,7 @@ class MallocMemorySummary : AllStatic {
 
  public:
    static void initialize();
+   static void initialize(const MallocLimits& limits);
 
    static inline void record_malloc(size_t size, MEMFLAGS flag) {
      as_snapshot()->by_type(flag)->record_malloc(size);
@@ -286,6 +288,7 @@ class MallocTracker : AllStatic {
  public:
   // Initialize malloc tracker for specific tracking level
   static bool initialize(NMT_TrackingLevel level);
+  static bool initialize(NMT_TrackingLevel level, const MallocLimits& limits);
 
   // The overhead that is incurred by switching on NMT (we need, per malloc allocation,
   // space for header and 16-bit footer)
