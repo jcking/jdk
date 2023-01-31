@@ -558,7 +558,7 @@ public:
     inline u4 get_location_offset(u4 index) const {
         assert((u4)index < _header.table_length(_order) &&
                             "index exceeds location count");
-        return _Endian::get(order, _offsets_table[index]);
+        return Endian::get(_order, _offsets_table[index]);
     }
 
     // Find the location attributes associated with the path.    Returns true if

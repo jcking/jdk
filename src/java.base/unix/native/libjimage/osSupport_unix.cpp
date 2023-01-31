@@ -38,7 +38,11 @@
  * Return the file descriptor.
  */
 jint osSupport::openReadOnly(const char *path) {
-    return ::open(path, 0);
+    int flags = O_RDONLY;
+#ifdef O_CLOEXEC
+    flags |= O_CLOEXEC;
+#endif
+    return ::open(path, flags);
 }
 
 /**
@@ -74,7 +78,7 @@ jlong osSupport::read(jint fd, char *buf, jlong nBytes, jlong offset) {
 void* osSupport::map_memory(int fd, const char *filename, size_t file_offset, size_t bytes) {
     void* mapped_address = NULL;
     mapped_address = (void*) mmap(NULL,
-            bytes, PROT_READ, MAP_SHARED,
+            bytes, PROT_READ, MAP_PRIVATE,
             fd, file_offset);
     if (mapped_address == MAP_FAILED) {
         return NULL;

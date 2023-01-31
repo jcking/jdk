@@ -338,8 +338,8 @@ ImageFileReader* ImageFileReader::id_to_reader(u8 id) {
 
 // Constructor initializes to a closed state.
 ImageFileReader::ImageFileReader(const char* name, ByteOrder order) :
-    _module_data(NULL),
-    _order(order) {
+    _order(order),
+    _module_data(NULL) {
     // Copy the image file name.
      int len = (int) strlen(name) + 1;
     _name = new char[len];
