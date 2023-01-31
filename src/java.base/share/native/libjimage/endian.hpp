@@ -34,6 +34,28 @@
 
 #include "inttypes.hpp"
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(_byteswap_ushort)
+#pragma intrinsic(_byteswap_ulong)
+#pragma intrinsic(_byteswap_uint64)
+#elif defined(__xlC__)
+#include <builtins.h>
+#endif
+
+enum class ByteOrder {
+    BIG,
+    LITTLE,
+
+    JAVA = BIG,
+#if defined(_LITTLE_ENDIAN)
+    NATIVE = LITTLE,
+#endif
+#if defined(_BIG_ENDIAN)
+    NATIVE = BIG,
+#endif
+};
+
 // Selectable endian handling. Endian handlers are used when accessing values
 // that are of unknown (until runtime) endian.  The only requirement of the values
 // accessed are that they are aligned to proper size boundaries (no misalignment.)
@@ -49,83 +71,180 @@
 //          s4 corrected = endian->get(value);
 //          endian->set(value, 1);
 //
-class Endian {
+class Endian final {
 public:
-    virtual u2 get(u2 x) = 0;
-    virtual u4 get(u4 x) = 0;
-    virtual u8 get(u8 x) = 0;
-    virtual s2 get(s2 x) = 0;
-    virtual s4 get(s4 x) = 0;
-    virtual s8 get(s8 x) = 0;
+    static constexpr ByteOrder BIG = ByteOrder::BIG;
+    static constexpr ByteOrder LITTLE = ByteOrder::LITTLE;
+    static constexpr ByteOrder JAVA = ByteOrder::JAVA;
+    static constexpr ByteOrder NATIVE = ByteOrder::NATIVE;
 
-    virtual void set(u2& x, u2 y) = 0;
-    virtual void set(u4& x, u4 y) = 0;
-    virtual void set(u8& x, u8 y) = 0;
-    virtual void set(s2& x, s2 y) = 0;
-    virtual void set(s4& x, s4 y) = 0;
-    virtual void set(s8& x, s8 y) = 0;
+    static constexpr bool is_big() {
+      return NATIVE == BIG;
+    }
 
-    // Quick little endian test.
-    static bool is_little_endian() { u4 x = 1; return *(u1 *)&x != 0; }
+#if defined(__GNUC__)
 
-    // Quick big endian test.
-    static bool is_big_endian() { return !is_little_endian(); }
+    static inline u2 swap(u2 x) {
+        return __builtin_bswap16(x);
+    }
 
-    // Select an appropriate endian handler.
-    static Endian* get_handler(bool big_endian);
+    static inline u4 swap(u4 x) {
+        return __builtin_bswap32(x);
+    }
 
-    // Return the native endian handler.
-    static Endian* get_native_handler();
+    static inline u8 swap(u8 x) {
+        return __builtin_bswap64(x);
+    }
+
+#elif defined(_MSC_VER)
+
+    static inline u2 swap(u2 x) {
+        return _byteswap_ushort(x);
+    }
+
+    static inline u4 swap(u4 x) {
+        return _byteswap_ulong(x);
+    }
+
+    static inline u8 swap(u8 x) {
+        return _byteswap_uint64(x);
+    }
+
+#elif defined(__xlC__)
+
+    static inline u2 swap(u2 x) {
+        unsigned short y;
+        __store2r(static_cast<unsigned short>(x), &y);
+        return static_cast<u2>(y);
+    }
+
+    static inline u4 swap(u4 x) {
+        unsigned int y;
+        __store4r(static_cast<unsigned int>(x), &y);
+        return static_cast<u4>(y);
+    }
+
+    static inline u8 swap(u8 x) {
+#if defined(_ARCH_PWR7) && defined(_ARCH_PPC64)
+        unsigned long long y;
+        __store8r(static_cast<unsigned long long>(x), &y);
+        return static_cast<u8>(y);
+#else
+        return (((x & UINT64_C(0x00000000000000ff)) << 56) | ((x & UINT64_C(0x000000000000ff00)) << 40) |
+                ((x & UINT64_C(0x0000000000ff0000)) << 24) | ((x & UINT64_C(0x00000000ff000000)) << 8) |
+                ((x & UINT64_C(0x000000ff00000000)) >> 8) | ((x & UINT64_C(0x0000ff0000000000)) >> 24) |
+                ((x & UINT64_C(0x00ff000000000000)) >> 40) | ((x & UINT64_C(0xff00000000000000)) >> 56));
+#endif
+    }
+
+#else
+
+    static inline u2 swap(u2 x) {
+        return (((x & UINT16_C(0x00ff)) << 8) | ((x & UINT16_C(0xff00)) >> 8));
+    }
+
+    static inline u4 swap(u4 x) {
+        return (((x & UINT32_C(0x000000ff)) << 24) | ((x & UINT32_C(0x0000ff00)) << 8) |
+                ((x & UINT32_C(0x00ff0000)) >> 8) | ((x & UINT32_C(0xff000000)) >> 24));
+    }
+
+    static inline u8 swap(u8 x) {
+        return (((x & UINT64_C(0x00000000000000ff)) << 56) | ((x & UINT64_C(0x000000000000ff00)) << 40) |
+                ((x & UINT64_C(0x0000000000ff0000)) << 24) | ((x & UINT64_C(0x00000000ff000000)) << 8) |
+                ((x & UINT64_C(0x000000ff00000000)) >> 8) | ((x & UINT64_C(0x0000ff0000000000)) >> 24) |
+                ((x & UINT64_C(0x00ff000000000000)) >> 40) | ((x & UINT64_C(0xff00000000000000)) >> 56));
+    }
+
+#endif
+
+    static inline s2 swap(s2 x) {
+      return static_cast<s2>(swap(static_cast<u2>(x)));
+    }
+
+    static inline s4 swap(s4 x) {
+      return static_cast<s4>(swap(static_cast<u4>(x)));
+    }
+
+    static inline s8 swap(s8 x) {
+      return static_cast<s8>(swap(static_cast<u8>(x)));
+    }
+
+    static inline u2 get(ByteOrder order, u2 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline u4 get(ByteOrder order, u4 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline u8 get(ByteOrder order, u8 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline s2 get(ByteOrder order, s2 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline s4 get(ByteOrder order, s4 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline s8 get(ByteOrder order, s8 x) {
+      if (order != NATIVE) {
+          x = swap(x);
+      }
+      return x;
+    }
+
+    static inline void set(ByteOrder order, u2& x, u2 y) {
+        x = get(order, y);
+    }
+
+    static inline void set(ByteOrder order, u4& x, u4 y) {
+        x = get(order, y);
+    }
+
+    static inline void set(ByteOrder order, u8& x, u8 y) {
+        x = get(order, y);
+    }
+
+    static inline void set(ByteOrder order, s2& x, s2 y) {
+        x = get(order, y);
+    }
+
+    static inline void set(ByteOrder order, s4& x, s4 y) {
+        x = get(order, y);
+    }
+
+    static inline void set(ByteOrder order, s8& x, s8 y) {
+        x = get(order, y);
+    }
 
     // get platform u2 from Java Big endian
-    static u2 get_java(u1* x);
+    static inline u2 get_java(const u1* x) {
+        return (static_cast<u2>(x[0]) << 8) | static_cast<u2>(x[1]);
+    }
+
     // set platform u2 to Java Big endian
-    static void set_java(u1* p, u2 x);
+    static inline void set_java(u1* p, u2 x) {
+        p[0] = static_cast<u1>((x >> 8) & 0xff);
+        p[1] = static_cast<u1>(x & 0xff);
+    }
 };
 
-// Normal endian handling.
-class NativeEndian : public Endian {
-private:
-    static NativeEndian _native;
-
-public:
-    u2 get(u2 x);
-    u4 get(u4 x);
-    u8 get(u8 x);
-    s2 get(s2 x);
-    s4 get(s4 x);
-    s8 get(s8 x);
-
-    void set(u2& x, u2 y);
-    void set(u4& x, u4 y);
-    void set(u8& x, u8 y);
-    void set(s2& x, s2 y);
-    void set(s4& x, s4 y);
-    void set(s8& x, s8 y);
-
-    static Endian* get_native() { return &_native; }
-};
-
-// Swapping endian handling.
-class SwappingEndian : public Endian {
-private:
-    static SwappingEndian _swapping;
-
-public:
-    u2 get(u2 x);
-    u4 get(u4 x);
-    u8 get(u8 x);
-    s2 get(s2 x);
-    s4 get(s4 x);
-    s8 get(s8 x);
-
-    void set(u2& x, u2 y);
-    void set(u4& x, u4 y);
-    void set(u8& x, u8 y);
-    void set(s2& x, s2 y);
-    void set(s4& x, s4 y);
-    void set(s8& x, s8 y);
-
-    static Endian* get_swapping() { return &_swapping; }
-};
 #endif // LIBJIMAGE_ENDIAN_HPP

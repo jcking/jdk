@@ -99,8 +99,8 @@ private:
      */
     inline const char* get_name() const { return _name; }
 
-    static u8 getU8(u1* ptr, Endian *endian);
-    static u4 getU4(u1* ptr, Endian *endian);
+    static u8 getU8(const u1* ptr, ByteOrder order);
+    static u4 getU4(const u1* ptr, ByteOrder order);
 
 protected:
     ImageDecompressor(const char* name) : _name(name) {
@@ -113,7 +113,7 @@ public:
     static void image_decompressor_close();
     static ImageDecompressor* get_decompressor(const char * decompressor_name) ;
     static void decompress_resource(u1* compressed, u1* uncompressed,
-        u8 uncompressed_size, const ImageStrings* strings, Endian* _endian);
+        u8 uncompressed_size, const ImageStrings* strings, ByteOrder order);
 };
 
 /**

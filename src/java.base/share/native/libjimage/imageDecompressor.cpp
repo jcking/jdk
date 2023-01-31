@@ -108,25 +108,55 @@ ImageDecompressor* ImageDecompressor::get_decompressor(const char * decompressor
 // Sparc to read unaligned content
 // u8 l = (*(u8*) ptr);
 // If ptr is not aligned, sparc will fail.
-u8 ImageDecompressor::getU8(u1* ptr, Endian *endian) {
+u8 ImageDecompressor::getU8(const u1* ptr, ByteOrder order) {
     u8 ret;
-    if (endian->is_big_endian()) {
-        ret = (u8)ptr[0] << 56 | (u8)ptr[1] << 48 | (u8)ptr[2]<<40 | (u8)ptr[3]<<32 |
-                ptr[4]<<24 | ptr[5]<<16 | ptr[6]<<8 | ptr[7];
-    } else {
-        ret = ptr[0] | ptr[1]<<8 | ptr[2]<<16 | ptr[3]<<24 | (u8)ptr[4]<<32 |
-                (u8)ptr[5]<<40 | (u8)ptr[6]<<48 | (u8)ptr[7]<<56;
+#if defined(__GNUC__)
+    __builtin_memcpy(&ret, ptr, sizeof(ret));
+    if (order != ByteOrder::NATIVE) {
+        ret = Endian::swap(ret);
     }
+#elif defined(_MSC_VER)
+    ret = *reinterpret_cast<__unaligned const u8*>(ptr);
+    if (order != ByteOrder::NATIVE) {
+        ret = Endian::swap(ret);
+    }
+#else
+    if (order == ByteOrder::BIG) {
+        ret = (static_cast<u8>(ptr[0]) << 56) | (static_cast<u8>(ptr[1]) << 48) |
+              (static_cast<u8>(ptr[2]) << 40) | (static_cast<u8>(ptr[3]) << 32) |
+              (static_cast<u8>(ptr[4]) << 24) | (static_cast<u8>(ptr[5]) << 16) |
+              (static_cast<u8>(ptr[6]) << 8) | static_cast<u8>(ptr[7]);
+    } else {
+        ret = static_cast<u8>(ptr[0]) | (static_cast<u8>(ptr[1]) << 8) |
+              (static_cast<u8>(ptr[2]) << 16) | (static_cast<u8>(ptr[3]) << 24) |
+              (static_cast<u8>(ptr[4]) << 32) | (static_cast<u8>(ptr[5]) << 40) |
+              (static_cast<u8>(ptr[6]) << 48) | (static_cast<u8>(ptr[7]) << 56);
+    }
+#endif
     return ret;
 }
 
-u4 ImageDecompressor::getU4(u1* ptr, Endian *endian) {
+u4 ImageDecompressor::getU4(const u1* ptr, ByteOrder order) {
     u4 ret;
-    if (endian->is_big_endian()) {
-        ret = ptr[0] << 24 | ptr[1]<<16 | (ptr[2]<<8) | ptr[3];
-    } else {
-        ret = ptr[0] | ptr[1]<<8 | (ptr[2]<<16) | ptr[3]<<24;
+#if defined(__GNUC__)
+    __builtin_memcpy(&ret, ptr, sizeof(ret));
+    if (order != ByteOrder::NATIVE) {
+        ret = Endian::swap(ret);
     }
+#elif defined(_MSC_VER)
+    ret = *reinterpret_cast<__unaligned const u4*>(ptr);
+    if (order != ByteOrder::NATIVE) {
+        ret = Endian::swap(ret);
+    }
+#else
+    if (order == ByteOrder::BIG) {
+        ret = (static_cast<u4>(ptr[0]) << 24) | (static_cast<u4>(ptr[1]) << 16) |
+              (static_cast<u4>(ptr[2]) << 8) | static_cast<u4>(ptr[3]);
+    } else {
+        ret = static_cast<u4>(ptr[0]) | (static_cast<u4>(ptr[1]) << 8) |
+              (static_cast<u4>(ptr[2]) << 16) | (static_cast<u4>(ptr[3]) << 24);
+    }
+#endif
     return ret;
 }
 
@@ -134,7 +164,7 @@ u4 ImageDecompressor::getU4(u1* ptr, Endian *endian) {
  * Decompression entry point. Called from ImageFileReader::get_resource.
  */
 void ImageDecompressor::decompress_resource(u1* compressed, u1* uncompressed,
-                u8 uncompressed_size, const ImageStrings* strings, Endian *endian) {
+                u8 uncompressed_size, const ImageStrings* strings, ByteOrder order) {
     bool has_header = false;
     u1* decompressed_resource = compressed;
     u1* compressed_resource = compressed;
@@ -143,15 +173,15 @@ void ImageDecompressor::decompress_resource(u1* compressed, u1* uncompressed,
     do {
         ResourceHeader _header;
         u1* compressed_resource_base = compressed_resource;
-        _header._magic = getU4(compressed_resource, endian);
+        _header._magic = getU4(compressed_resource, order);
         compressed_resource += 4;
-        _header._size = getU8(compressed_resource, endian);
+        _header._size = getU8(compressed_resource, order);
         compressed_resource += 8;
-        _header._uncompressed_size = getU8(compressed_resource, endian);
+        _header._uncompressed_size = getU8(compressed_resource, order);
         compressed_resource += 8;
-        _header._decompressor_name_offset = getU4(compressed_resource, endian);
+        _header._decompressor_name_offset = getU4(compressed_resource, order);
         compressed_resource += 4;
-        _header._decompressor_config_offset = getU4(compressed_resource, endian);
+        _header._decompressor_config_offset = getU4(compressed_resource, order);
         compressed_resource += 4;
         _header._is_terminal = *compressed_resource;
         compressed_resource += 1;

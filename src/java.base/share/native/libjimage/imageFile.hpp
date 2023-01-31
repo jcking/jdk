@@ -180,7 +180,7 @@ public:
 
     // Match up a string in a perfect hash table.    Result still needs validation
     // for precise match.
-    static s4 find(Endian* endian, const char* name, s4* redirect, u4 length);
+    static s4 find(ByteOrder order, const char* name, s4* redirect, u4 length);
 
     // Test to see if UTF-8 string begins with the start UTF-8 string.  If so,
     // return non-NULL address of remaining portion of string.  Otherwise, return
@@ -305,8 +305,9 @@ public:
 //
 // Manage the image module meta data.
 class ImageModuleData {
+private:
     const ImageFileReader* _image_file; // Source image file
-    Endian* _endian;                    // Endian handler
+    ByteOrder _order;                    // Endian handler
 
 public:
     ImageModuleData(const ImageFileReader* image_file);
@@ -329,29 +330,29 @@ private:
 
 public:
     u4 magic() const { return _magic; }
-    u4 magic(Endian* endian) const { return endian->get(_magic); }
-    void set_magic(Endian* endian, u4 magic) { return endian->set(_magic, magic); }
+    u4 magic(ByteOrder order) const { return Endian::get(order, _magic); }
+    void set_magic(ByteOrder order, u4 magic) { return Endian::set(order, _magic, magic); }
 
-    u4 major_version(Endian* endian) const { return endian->get(_version) >> 16; }
-    u4 minor_version(Endian* endian) const { return endian->get(_version) & 0xFFFF; }
-    void set_version(Endian* endian, u4 major_version, u4 minor_version) {
-        return endian->set(_version, major_version << 16 | minor_version);
+    u4 major_version(ByteOrder order) const { return Endian::get(order, _version) >> 16; }
+    u4 minor_version(ByteOrder order) const { return Endian::get(order, _version) & 0xFFFF; }
+    void set_version(ByteOrder order, u4 major_version, u4 minor_version) {
+        return Endian::set(order, _version, major_version << 16 | minor_version);
     }
 
-    u4 flags(Endian* endian) const { return endian->get(_flags); }
-    void set_flags(Endian* endian, u4 value) { return endian->set(_flags, value); }
+    u4 flags(ByteOrder order) const { return Endian::get(order, _flags); }
+    void set_flags(ByteOrder order, u4 value) { return Endian::set(order, _flags, value); }
 
-    u4 resource_count(Endian* endian) const { return endian->get(_resource_count); }
-    void set_resource_count(Endian* endian, u4 count) { return endian->set(_resource_count, count); }
+    u4 resource_count(ByteOrder order) const { return Endian::get(order, _resource_count); }
+    void set_resource_count(ByteOrder order, u4 count) { return Endian::set(order, _resource_count, count); }
 
-    u4 table_length(Endian* endian) const { return endian->get(_table_length); }
-    void set_table_length(Endian* endian, u4 count) { return endian->set(_table_length, count); }
+    u4 table_length(ByteOrder order) const { return Endian::get(order, _table_length); }
+    void set_table_length(ByteOrder order, u4 count) { return Endian::set(order, _table_length, count); }
 
-    u4 locations_size(Endian* endian) const { return endian->get(_locations_size); }
-    void set_locations_size(Endian* endian, u4 size) { return endian->set(_locations_size, size); }
+    u4 locations_size(ByteOrder order) const { return Endian::get(order, _locations_size); }
+    void set_locations_size(ByteOrder order, u4 size) { return Endian::set(order, _locations_size, size); }
 
-    u4 strings_size(Endian* endian) const { return endian->get(_strings_size); }
-    void set_strings_size(Endian* endian, u4 size) { return endian->set(_strings_size, size); }
+    u4 strings_size(ByteOrder order) const { return Endian::get(order, _strings_size); }
+    void set_strings_size(ByteOrder order, u4 size) { return Endian::set(order, _strings_size, size); }
 };
 
 // Max path length limit independent of platform.    Windows max path is 1024,
@@ -419,7 +420,7 @@ private:
     char* _name;         // Name of image
     s4 _use;             // Use count
     int _fd;             // File descriptor
-    Endian* _endian;     // Endian handler
+    ByteOrder _order;     // Endian handler
     u8 _file_size;       // File size in bytes
     ImageHeader _header; // Image header
     size_t _index_size;  // Total size of index
@@ -430,7 +431,7 @@ private:
     u1* _string_bytes;   // String table
     ImageModuleData *_module_data;       // The ImageModuleData for this image
 
-    ImageFileReader(const char* name, bool big_endian);
+    ImageFileReader(const char* name, ByteOrder order);
     ~ImageFileReader();
 
     // Compute number of bytes in image file index.
@@ -455,7 +456,7 @@ public:
     static ImageFileReader* find_image(const char* name);
 
     // Open an image file, reuse structure if file already open.
-    static ImageFileReader* open(const char* name, bool big_endian = Endian::is_big_endian());
+    static ImageFileReader* open(const char* name, bool big_endian = Endian::is_big());
 
     // Close an image file if the file is not in use elsewhere.
     static void close(ImageFileReader *reader);
@@ -478,7 +479,7 @@ public:
     // Read directly from the file.
     bool read_at(u1* data, u8 size, u8 offset) const;
 
-    inline Endian* endian() const { return _endian; }
+    inline ByteOrder order() const { return _order; }
 
     // Retrieve name of image file.
     inline const char* name() const {
@@ -511,15 +512,15 @@ public:
     }
 
     inline u4 table_length() const {
-        return _header.table_length(_endian);
+        return _header.table_length(_order);
     }
 
     inline u4 locations_size() const {
-        return _header.locations_size(_endian);
+        return _header.locations_size(_order);
     }
 
     inline u4 strings_size()const    {
-        return _header.strings_size(_endian);
+        return _header.strings_size(_order);
     }
 
     inline u4* offsets_table() const {
@@ -538,12 +539,12 @@ public:
 
     // Return a string table accessor.
     inline const ImageStrings get_strings() const {
-        return ImageStrings(_string_bytes, _header.strings_size(_endian));
+        return ImageStrings(_string_bytes, _header.strings_size(_order));
     }
 
     // Return location attribute stream at offset.
     inline u1* get_location_offset_data(u4 offset) const {
-        assert((u4)offset < _header.locations_size(_endian) &&
+        assert((u4)offset < _header.locations_size(_order) &&
                             "offset exceeds location attributes size");
         return offset != 0 ? _location_bytes + offset : NULL;
     }
@@ -555,9 +556,9 @@ public:
 
     // Return the location offset for index.
     inline u4 get_location_offset(u4 index) const {
-        assert((u4)index < _header.table_length(_endian) &&
+        assert((u4)index < _header.table_length(_order) &&
                             "index exceeds location count");
-        return _endian->get(_offsets_table[index]);
+        return _Endian::get(order, _offsets_table[index]);
     }
 
     // Find the location attributes associated with the path.    Returns true if

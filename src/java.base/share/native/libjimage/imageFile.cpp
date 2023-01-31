@@ -72,7 +72,7 @@ s4 ImageStrings::hash_code(const char* string, s4 seed) {
 // Match up a string in a perfect hash table.
 // Returns the index where the name should be.
 // Result still needs validation for precise match (false positive.)
-s4 ImageStrings::find(Endian* endian, const char* name, s4* redirect, u4 length) {
+s4 ImageStrings::find(ByteOrder order, const char* name, s4* redirect, u4 length) {
     // If the table is empty, then short cut.
     if (!redirect || !length) {
         return NOT_FOUND;
@@ -85,7 +85,7 @@ s4 ImageStrings::find(Endian* endian, const char* name, s4* redirect, u4 length)
     //   value == 0 then not found
     //   value < 0 then -1 - value is true index
     //   value > 0 then value is seed for recomputing hash.
-    s4 value = endian->get(redirect[index]);
+    s4 value = Endian::get(order, redirect[index]);
     // if recompute is required.
     if (value > 0 ) {
         // Entry collision value, need to recompute hash.
@@ -148,7 +148,7 @@ void ImageLocation::clear_data() {
 // ImageModuleData constructor maps out sub-tables for faster access.
 ImageModuleData::ImageModuleData(const ImageFileReader* image_file) :
         _image_file(image_file),
-        _endian(image_file->endian()) {
+        _order(image_file->order()) {
 }
 
 // Release module data resource.
@@ -192,10 +192,10 @@ const char* ImageModuleData::package_to_module(const char* package_name) {
     // sequence of sizeof(8) isEmpty|offset. Use the first module that is not empty.
     u4 offset = 0;
     for (i = 0; i < size; i+=8) {
-        u4 isEmpty = _endian->get(*((u4*)ptr));
+        u4 isEmpty = Endian::get(_order, *((u4*)ptr));
         ptr += 4;
         if (!isEmpty) {
-            offset = _endian->get(*((u4*)ptr));
+            offset = Endian::get(_order, *((u4*)ptr));
             break;
         }
         ptr += 4;
@@ -278,7 +278,7 @@ ImageFileReader* ImageFileReader::open(const char* name, bool big_endian) {
     }
 
     // Need a new image reader.
-    reader = new ImageFileReader(name, big_endian);
+    reader = new ImageFileReader(name, big_endian ? ByteOrder::BIG : ByteOrder::LITTLE);
     if (reader == NULL || !reader->open()) {
         // Failed to open.
         delete reader;
@@ -337,8 +337,9 @@ ImageFileReader* ImageFileReader::id_to_reader(u8 id) {
 }
 
 // Constructor initializes to a closed state.
-ImageFileReader::ImageFileReader(const char* name, bool big_endian) :
-    _module_data(NULL) {
+ImageFileReader::ImageFileReader(const char* name, ByteOrder order) :
+    _module_data(NULL),
+    _order(order) {
     // Copy the image file name.
      int len = (int) strlen(name) + 1;
     _name = new char[len];
@@ -346,7 +347,6 @@ ImageFileReader::ImageFileReader(const char* name, bool big_endian) :
     strncpy(_name, name, len);
     // Initialize for a closed file.
     _fd = -1;
-    _endian = Endian::get_handler(big_endian);
     _index_data = NULL;
 }
 
@@ -378,9 +378,9 @@ bool ImageFileReader::open() {
     size_t header_size = sizeof(ImageHeader);
     if (_file_size < header_size ||
         !read_at((u1*)&_header, header_size, 0) ||
-        _header.magic(_endian) != IMAGE_MAGIC ||
-        _header.major_version(_endian) != MAJOR_VERSION ||
-        _header.minor_version(_endian) != MINOR_VERSION) {
+        _header.magic(_order) != IMAGE_MAGIC ||
+        _header.major_version(_order) != MAJOR_VERSION ||
+        _header.minor_version(_order) != MINOR_VERSION) {
         close();
         return false;
     }
@@ -446,7 +446,7 @@ bool ImageFileReader::read_at(u1* data, u8 size, u8 offset) const {
 // the location is found, false otherwise.
 bool ImageFileReader::find_location(const char* path, ImageLocation& location) const {
     // Locate the entry in the index perfect hash table.
-    s4 index = ImageStrings::find(_endian, path, _redirect_table, table_length());
+    s4 index = ImageStrings::find(_order, path, _redirect_table, table_length());
     // If is found.
     if (index != ImageStrings::NOT_FOUND) {
         // Get address of first byte of location attribute stream.
@@ -463,7 +463,7 @@ bool ImageFileReader::find_location(const char* path, ImageLocation& location) c
 // Returns the location index and size if the location is found, 0 otherwise.
 u4 ImageFileReader::find_location_index(const char* path, u8 *size) const {
     // Locate the entry in the index perfect hash table.
-    s4 index = ImageStrings::find(_endian, path, _redirect_table, table_length());
+    s4 index = ImageStrings::find(_order, path, _redirect_table, table_length());
     // If found.
     if (index != ImageStrings::NOT_FOUND) {
         // Get address of first byte of location attribute stream.
@@ -483,7 +483,7 @@ u4 ImageFileReader::find_location_index(const char* path, u8 *size) const {
 // Verify that a found location matches the supplied path (without copying.)
 bool ImageFileReader::verify_location(ImageLocation& location, const char* path) const {
     // Manage the image string table.
-    ImageStrings strings(_string_bytes, _header.strings_size(_endian));
+    ImageStrings strings(_string_bytes, _header.strings_size(_order));
     // Position to first character of the path string.
     const char* next = path;
     // Get module name string.
@@ -553,7 +553,7 @@ void ImageFileReader::get_resource(ImageLocation& location, u1* uncompressed_dat
         const ImageStrings strings = get_strings();
         // Decompress resource.
         ImageDecompressor::decompress_resource(compressed_data, uncompressed_data, uncompressed_size,
-                        &strings, _endian);
+                        &strings, _order);
         // If not memory mapped then release temporary buffer.
         if (!memory_map_image) {
                 delete[] compressed_data;
