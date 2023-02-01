@@ -565,7 +565,6 @@ void vm_exit(int code) {
     // VM thread is gone, just exit
     vm_direct_exit(code);
   }
-  ShouldNotReachHere();
 }
 
 void notify_vm_shutdown() {
@@ -618,7 +617,6 @@ void vm_abort(bool dump_core) {
   fflush(stderr);
 
   os::abort(dump_core);
-  ShouldNotReachHere();
 }
 
 void vm_notify_during_cds_dumping(const char* error, const char* message) {

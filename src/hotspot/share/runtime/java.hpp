@@ -33,31 +33,31 @@ class JavaThread;
 class Symbol;
 
 // Execute code before all handles are released and thread is killed; prologue to vm_exit
-extern void before_exit(JavaThread * thread, bool halt = false);
+void before_exit(JavaThread * thread, bool halt = false);
 
 // Forced VM exit (i.e, internal error or JVM_Exit)
-extern void vm_exit(int code);
+[[noreturn]] void vm_exit(int code);
 
 // Wrapper for ::exit()
-extern void vm_direct_exit(int code);
-extern void vm_direct_exit(int code, const char* message);
+[[noreturn]] void vm_direct_exit(int code);
+[[noreturn]] void vm_direct_exit(int code, const char* message);
 
 // Shutdown the VM but do not exit the process
-extern void vm_shutdown();
+void vm_shutdown();
 // Shutdown the VM and abort the process
-extern void vm_abort(bool dump_core=true);
+[[noreturn]] void vm_abort(bool dump_core = true);
 
 // Trigger any necessary notification of the VM being shutdown
-extern void notify_vm_shutdown();
+void notify_vm_shutdown();
 
 // VM exit if error occurs during initialization of VM
-extern void vm_exit_during_initialization();
-extern void vm_exit_during_initialization(Handle exception);
-extern void vm_exit_during_initialization(Symbol* exception_name, const char* message);
-extern void vm_exit_during_initialization(const char* error, const char* message = nullptr);
-extern void vm_shutdown_during_initialization(const char* error, const char* message = nullptr);
+[[noreturn]] void vm_exit_during_initialization();
+[[noreturn]] void vm_exit_during_initialization(Handle exception);
+[[noreturn]] void vm_exit_during_initialization(Symbol* exception_name, const char* message);
+[[noreturn]] void vm_exit_during_initialization(const char* error, const char* message = nullptr);
+void vm_shutdown_during_initialization(const char* error, const char* message = nullptr);
 
-extern void vm_exit_during_cds_dumping(const char* error, const char* message = nullptr);
+[[noreturn]] void vm_exit_during_cds_dumping(const char* error, const char* message = nullptr);
 
 /**
  * With the integration of the changes to handle the version string
