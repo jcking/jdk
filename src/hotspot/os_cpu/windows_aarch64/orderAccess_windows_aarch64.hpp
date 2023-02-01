@@ -26,33 +26,19 @@
 #define OS_CPU_WINDOWS_AARCH64_ORDERACCESS_WINDOWS_AARCH64_HPP
 
 // Included in orderAccess.hpp header file.
-#include <atomic>
-using std::atomic_thread_fence;
+
+#include <intrin.h>
 #include <arm64intr.h>
-#include "vm_version_aarch64.hpp"
-#include "runtime/vm_version.hpp"
+
+#pragma intrinsic(__dmb)
+#pragma intrinsic(__isb)
 
 // Implementation of class OrderAccess.
 
-inline void OrderAccess::loadload()   { acquire(); }
-inline void OrderAccess::storestore() { release(); }
-inline void OrderAccess::loadstore()  { acquire(); }
-inline void OrderAccess::storeload()  { fence(); }
-
-#define READ_MEM_BARRIER atomic_thread_fence(std::memory_order_acquire);
-#define WRITE_MEM_BARRIER atomic_thread_fence(std::memory_order_release);
-#define FULL_MEM_BARRIER atomic_thread_fence(std::memory_order_seq_cst);
-
-inline void OrderAccess::acquire() {
-  READ_MEM_BARRIER;
-}
-
-inline void OrderAccess::release() {
-  WRITE_MEM_BARRIER;
-}
-
 inline void OrderAccess::fence() {
-  FULL_MEM_BARRIER;
+  _ReadWriteBarrier();
+  __dmb(_ARM64_BARRIER_ISH);
+  _ReadWriteBarrier();
 }
 
 inline void OrderAccess::cross_modify_fence_impl() {

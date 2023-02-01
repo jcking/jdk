@@ -27,53 +27,45 @@
 
 // Included in orderAccess.hpp header file.
 
+#include "runtime/vm_version.hpp"
+
 #include <intrin.h>
+
+#if _MSC_VER >= 1928
+#pragma intrinsic(_serialize)
+#endif
+
+#pragma intrinsic(_InterlockedIncrement)
+#pragma intrinsic(__cpuid)
 
 // Compiler version last used for testing: Microsoft Visual Studio 2010
 // Please update this information when this file changes
 
 // Implementation of class OrderAccess.
 
-// A compiler barrier, forcing the C++ compiler to invalidate all memory assumptions
-inline void compiler_barrier() {
+#pragma warning(push)
+#pragma warning(disable : 6001)
+#pragma warning(disable : 28113)
+
+inline void OrderAccess::fence() {
+  _ReadWriteBarrier();
+  volatile long guard;
+  (void) _InterlockedIncrement(&guard);
   _ReadWriteBarrier();
 }
 
-inline void OrderAccess::loadload()   { compiler_barrier(); }
-inline void OrderAccess::storestore() { compiler_barrier(); }
-inline void OrderAccess::loadstore()  { compiler_barrier(); }
-inline void OrderAccess::storeload()  { fence(); }
+#pragma warning(pop)
 
-inline void OrderAccess::acquire()    { compiler_barrier(); }
-inline void OrderAccess::release()    { compiler_barrier(); }
-
-inline void OrderAccess::fence() {
-#ifdef AMD64
-  StubRoutines_fence();
-#else
-  __asm {
-    lock add dword ptr [esp], 0;
-  }
-#endif // AMD64
-  compiler_barrier();
-}
-
-inline void OrderAccess::cross_modify_fence_impl()
+inline void OrderAccess::cross_modify_fence_impl() {
 #if _MSC_VER >= 1928
-{
-//_serialize() intrinsic is supported starting from VS2019-16.7.2
+  // _serialize() intrinsic is supported starting from VS2019-16.7.2
   if (VM_Version::supports_serialize()) {
     _serialize();
-  } else {
-    int regs[4];
-    __cpuid(regs, 0);
+    return;
   }
-}
-#else
-{
+#endif
   int regs[4];
   __cpuid(regs, 0);
 }
-#endif
 
 #endif // OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP

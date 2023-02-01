@@ -60,25 +60,8 @@
 //                          Store|Load
 //
 
-#define inlasm_sync()     __asm__ __volatile__ ("sync"   : : : "memory");
-#define inlasm_lwsync()   __asm__ __volatile__ ("lwsync" : : : "memory");
-#define inlasm_eieio()    __asm__ __volatile__ ("eieio"  : : : "memory");
-#define inlasm_isync()    __asm__ __volatile__ ("isync"  : : : "memory");
-
-inline void OrderAccess::loadload()   { inlasm_lwsync(); }
-inline void OrderAccess::storestore() { inlasm_lwsync(); }
-inline void OrderAccess::loadstore()  { inlasm_lwsync(); }
-inline void OrderAccess::storeload()  { inlasm_sync();   }
-
-inline void OrderAccess::acquire()    { inlasm_lwsync(); }
-inline void OrderAccess::release()    { inlasm_lwsync(); }
-inline void OrderAccess::fence()      { inlasm_sync();   }
-inline void OrderAccess::cross_modify_fence_impl()
-                                      { inlasm_isync();  }
-
-#undef inlasm_sync
-#undef inlasm_lwsync
-#undef inlasm_eieio
-#undef inlasm_isync
+inline void OrderAccess::cross_modify_fence_impl() {
+  __asm__ __volatile__ ("isync"  : : : "memory");
+}
 
 #endif // OS_CPU_AIX_PPC_ORDERACCESS_AIX_PPC_HPP

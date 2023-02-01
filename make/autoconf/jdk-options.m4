@@ -525,6 +525,42 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_UNDEFINED_BEHAVIOR_SANITIZER],
   AC_SUBST(UBSAN_ENABLED)
 ])
 
+###############################################################################
+#
+# ThreadSanitizer
+#
+AC_DEFUN_ONCE([JDKOPT_SETUP_THREAD_SANITIZER],
+[
+  UTIL_ARG_ENABLE(NAME: tsan, DEFAULT: false, RESULT: TSAN_ENABLED,
+      DESC: [enable ThreadSanitizer],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if ThreadSanitizer (tsan) is available])
+        if test "x$TOOLCHAIN_TYPE" = "xgcc" ||
+            test "x$TOOLCHAIN_TYPE" = "xclang"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
+        # ASan is simply incompatible with gcc -Wstringop-truncation. See
+        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85650
+        # It's harmless to be suppressed in clang as well.
+        TSAN_CFLAGS="-fsanitize=thread -Wno-tsan -Wno-stringop-truncation -fno-omit-frame-pointer -DTHREAD_SANITIZER"
+        TSAN_LDFLAGS="-fsanitize=thread"
+        JVM_CFLAGS="$JVM_CFLAGS $TSAN_CFLAGS"
+        JVM_LDFLAGS="$JVM_LDFLAGS $TSAN_LDFLAGS"
+        CFLAGS_JDKLIB="$CFLAGS_JDKLIB $TSAN_CFLAGS"
+        CFLAGS_JDKEXE="$CFLAGS_JDKEXE $TSAN_CFLAGS"
+        CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $TSAN_CFLAGS"
+        CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $TSAN_CFLAGS"
+        LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $TSAN_LDFLAGS"
+        LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $TSAN_LDFLAGS"
+      ])
+  AC_SUBST(TSAN_ENABLED)
+])
+
 ################################################################################
 #
 # Static build support.  When enabled will generate static

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2007, 2008, 2009 Red Hat, Inc.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +22,43 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
-#define OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
+#ifndef SHARE_RUNTIME_ORDERACCESS_GCC_HPP
+#define SHARE_RUNTIME_ORDERACCESS_GCC_HPP
 
-// Included in orderAccess.hpp header file.
+#ifndef SHARE_RUNTIME_ORDERACCESS_HPP
+#error orderAccess_gcc.hpp cannot not be included directly, use orderAccess.hpp
+#endif
 
-inline void OrderAccess::cross_modify_fence_impl()            { }
+#include "utilities/globalDefinitions.hpp"
 
-#endif // OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
+PRAGMA_DIAG_PUSH
+
+PRAGMA_DISABLE_GCC_WARNING("-Wtsan")
+
+inline void OrderAccess::loadload() {
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+}
+
+inline void OrderAccess::storestore() {
+  __atomic_thread_fence(__ATOMIC_RELEASE);
+}
+
+inline void OrderAccess::loadstore() {
+  __atomic_thread_fence(__ATOMIC_ACQ_REL);
+}
+
+inline void OrderAccess::acquire() {
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+}
+
+inline void OrderAccess::release() {
+  __atomic_thread_fence(__ATOMIC_RELEASE);
+}
+
+inline void OrderAccess::fence() {
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}
+
+PRAGMA_DIAG_POP
+
+#endif // SHARE_RUNTIME_ORDERACCESS_GCC_HPP

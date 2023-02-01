@@ -222,6 +222,9 @@ JDKOPT_SETUP_UNDEFINED_BEHAVIOR_SANITIZER
 # LeakSanitizer
 JDKOPT_SETUP_LEAK_SANITIZER
 
+# ThreadSanitizer
+JDKOPT_SETUP_THREAD_SANITIZER
+
 ###############################################################################
 #
 # Check dependencies for external and internal libraries.

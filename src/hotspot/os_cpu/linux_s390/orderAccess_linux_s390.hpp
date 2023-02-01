@@ -50,36 +50,12 @@
 //                              Store|Load
 //
 
-
 // Only load-after-store-order is not guaranteed on z/Architecture, i.e. only 'fence'
 // is needed.
 
-// A compiler barrier, forcing the C++ compiler to invalidate all memory assumptions.
-#define inlasm_compiler_barrier() __asm__ volatile ("" : : : "memory");
+inline void OrderAccess::cross_modify_fence_impl() {
 // "bcr 15, 0" is used as two way memory barrier.
-#define inlasm_zarch_sync() __asm__ __volatile__ ("bcr 15, 0" : : : "memory");
-
-// Release and acquire are empty on z/Architecture, but potential
-// optimizations of gcc must be forbidden by OrderAccess::release and
-// OrderAccess::acquire.
-#define inlasm_zarch_release() inlasm_compiler_barrier()
-#define inlasm_zarch_acquire() inlasm_compiler_barrier()
-#define inlasm_zarch_fence()   inlasm_zarch_sync()
-
-inline void OrderAccess::loadload()   { inlasm_compiler_barrier(); }
-inline void OrderAccess::storestore() { inlasm_compiler_barrier(); }
-inline void OrderAccess::loadstore()  { inlasm_compiler_barrier(); }
-inline void OrderAccess::storeload()  { inlasm_zarch_sync(); }
-
-inline void OrderAccess::acquire()    { inlasm_zarch_acquire(); }
-inline void OrderAccess::release()    { inlasm_zarch_release(); }
-inline void OrderAccess::fence()      { inlasm_zarch_sync(); }
-inline void OrderAccess::cross_modify_fence_impl() { inlasm_zarch_sync(); }
-
-#undef inlasm_compiler_barrier
-#undef inlasm_zarch_sync
-#undef inlasm_zarch_release
-#undef inlasm_zarch_acquire
-#undef inlasm_zarch_fence
+  __asm__ __volatile__ ("bcr 15, 0" : : : "memory");
+}
 
 #endif // OS_CPU_LINUX_S390_ORDERACCESS_LINUX_S390_HPP

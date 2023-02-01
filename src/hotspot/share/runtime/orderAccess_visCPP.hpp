@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2007, 2008, 2009 Red Hat, Inc.
+ * Copyright (c) 2022, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +22,33 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
-#define OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
+#ifndef SHARE_RUNTIME_ORDERACCESS_VISCPP_HPP
+#define SHARE_RUNTIME_ORDERACCESS_VISCPP_HPP
 
-// Included in orderAccess.hpp header file.
+#ifndef SHARE_RUNTIME_ORDERACCESS_HPP
+#error orderAccess_visCPP.hpp cannot not be included directly, use orderAccess.hpp
+#endif
 
-inline void OrderAccess::cross_modify_fence_impl()            { }
+#include <intrin.h>
 
-#endif // OS_CPU_LINUX_ZERO_ORDERACCESS_LINUX_ZERO_HPP
+inline void OrderAccess::loadload() {
+  _ReadBarrier();
+}
+
+inline void OrderAccess::storestore() {
+  _WriteBarrier();
+}
+
+inline void OrderAccess::loadstore() {
+  _ReadWriteBarrier();
+}
+
+inline void OrderAccess::acquire() {
+  _ReadBarrier();
+}
+
+inline void OrderAccess::release() {
+  _WriteBarrier();
+}
+
+#endif // SHARE_RUNTIME_ORDERACCESS_VISCPP_HPP

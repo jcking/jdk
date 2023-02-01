@@ -27,6 +27,7 @@
 
 #include "memory/allStatic.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 //                Memory Access Ordering Model
@@ -235,19 +236,19 @@
 // instructions that come after the fence in program order are fetched
 // from the cache or memory after the fence has completed.
 
-class OrderAccess : public AllStatic {
+class OrderAccess final : public AllStatic {
  public:
   // barriers
-  static void     loadload();
-  static void     storestore();
-  static void     loadstore();
-  static void     storeload();
+  static void loadload();
+  static void storestore();
+  static void loadstore();
+  static void storeload();
 
-  static void     acquire();
-  static void     release();
-  static void     fence();
+  static void acquire();
+  static void release();
+  static void fence();
 
-  static void     cross_modify_fence() {
+  static inline void cross_modify_fence() {
     cross_modify_fence_impl();
     cross_modify_fence_verify();
   }
@@ -255,14 +256,15 @@ class OrderAccess : public AllStatic {
   // Processors which are not multi-copy-atomic require a full fence
   // to enforce a globally consistent order of Independent Reads of
   // Independent Writes. Please use only for such patterns!
-  static void     loadload_for_IRIW() {
+  static inline void loadload_for_IRIW() {
 #ifndef CPU_MULTI_COPY_ATOMIC
     fence();
 #else
     loadload();
 #endif
   }
-private:
+
+ private:
   // This is a helper that invokes the StubRoutines::fence_entry()
   // routine if it exists, It should only be used by platforms that
   // don't have another way to do the inline assembly.
@@ -272,6 +274,18 @@ private:
 
   static void cross_modify_fence_verify() PRODUCT_RETURN;
 };
+
+inline void OrderAccess::storeload() {
+  fence();
+}
+
+#if defined(TARGET_COMPILER_gcc) || defined(TARGET_COMPILER_xlc)
+#include "orderAccess_gcc.hpp"
+#elif defined(TARGET_COMPILER_visCPP)
+#include "orderAccess_visCPP.hpp"
+#else
+#error Unknown toolchain.
+#endif
 
 #include OS_CPU_HEADER(orderAccess)
 

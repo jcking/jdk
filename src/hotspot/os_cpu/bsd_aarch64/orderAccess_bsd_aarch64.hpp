@@ -31,27 +31,6 @@
 
 // Implementation of class OrderAccess.
 
-inline void OrderAccess::loadload()   { acquire(); }
-inline void OrderAccess::storestore() { release(); }
-inline void OrderAccess::loadstore()  { acquire(); }
-inline void OrderAccess::storeload()  { fence(); }
-
-#define FULL_MEM_BARRIER  __sync_synchronize()
-#define READ_MEM_BARRIER  __atomic_thread_fence(__ATOMIC_ACQUIRE);
-#define WRITE_MEM_BARRIER __atomic_thread_fence(__ATOMIC_RELEASE);
-
-inline void OrderAccess::acquire() {
-  READ_MEM_BARRIER;
-}
-
-inline void OrderAccess::release() {
-  WRITE_MEM_BARRIER;
-}
-
-inline void OrderAccess::fence() {
-  FULL_MEM_BARRIER;
-}
-
 inline void OrderAccess::cross_modify_fence_impl() {
   asm volatile("isb" : : : "memory");
 }

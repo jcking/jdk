@@ -38,13 +38,25 @@
 enum atomic_memory_order {
   // The modes that align with C++11 are intended to
   // follow the same semantics.
+#if defined(TARGET_COMPILER_gcc) || defined(TARGET_COMPILER_xlc)
+  memory_order_relaxed = __ATOMIC_RELAXED,
+  memory_order_consume = __ATOMIC_CONSUME,
+  memory_order_acquire = __ATOMIC_ACQUIRE,
+  memory_order_release = __ATOMIC_RELEASE,
+  memory_order_acq_rel = __ATOMIC_ACQ_REL,
+  memory_order_seq_cst = __ATOMIC_SEQ_CST,
+#elif defined(TARGET_COMPILER_visCPP)
   memory_order_relaxed = 0,
+  memory_order_consume = 1,
   memory_order_acquire = 2,
   memory_order_release = 3,
   memory_order_acq_rel = 4,
   memory_order_seq_cst = 5,
+#else
+#error Unknown toolchain.
+#endif
   // Strong two-way memory barrier.
-  memory_order_conservative = 8
+  memory_order_conservative,
 };
 
 enum ScopedFenceType {
@@ -53,8 +65,8 @@ enum ScopedFenceType {
   , RELEASE_X_FENCE
 };
 
-class Atomic : AllStatic {
-public:
+class Atomic final : public AllStatic {
+ public:
   // Atomic operations on int64 types are not available on all 32-bit
   // platforms. If atomic ops on int64 are defined here they must only
   // be used from code that verifies they are available at runtime and
@@ -159,6 +171,32 @@ public:
   template<typename D, typename T>
   inline static bool replace_if_null(D* volatile* dest, T* value,
                                      atomic_memory_order order = memory_order_conservative);
+
+  template <typename D>
+  inline static bool set_bit(D volatile* dest, int bit,
+                             atomic_memory_order order = memory_order_conservative);
+
+  template <typename D>
+  inline static bool test_bit(const D volatile* dest, int bit,
+                              atomic_memory_order order = memory_order_conservative);
+
+  template <typename D>
+  inline static bool clear_bit(D volatile* dest, int bit,
+                               atomic_memory_order order = memory_order_conservative);
+
+   static inline constexpr liberalize(atomic_memory_order order) {
+    return order == memory_order_conservative ? memory_order_seq_cst : order;
+   }
+
+   static inline constexpr liberalize_for_success(atomic_memory_order order) {
+    return liberalize(order);
+   }
+
+   static inline constexpr liberalize_for_failure(atomic_memory_order order) {
+    return liberalize(order != memory_order_release && order != memory_order_acq_rel
+                        ? order
+                        : memory_order_acquire);
+   }
 
 private:
   // Test whether From is implicitly convertible to To.
@@ -356,6 +394,10 @@ private:
   // specialize the class template for that size.
   template<size_t byte_size> struct PlatformXchg;
 
+  template <size_t N> struct PlatformBitSet;
+  template <size_t N> struct PlatformBitTest;
+  template <size_t N> struct PlatformBitClear;
+
   // Support for platforms that implement some variants of xchg
   // using a (typically out of line) non-template helper function.
   // The generic arguments passed to PlatformXchg need to be
@@ -550,6 +592,24 @@ struct Atomic::PlatformCmpxchg {
                atomic_memory_order order) const;
 };
 
+template <size_t N>
+struct Atomic::PlatformBitSet {
+  template <typename D>
+  bool operator()(D volatile* dest, int bit, atomic_memory_order order) const;
+};
+
+template <size_t N>
+struct Atomic::PlatformBitTest {
+  template <typename D>
+  bool operator()(const D volatile* dest, int bit, atomic_memory_order order) const;
+};
+
+template <size_t N>
+struct Atomic::PlatformBitClear {
+  template <typename D>
+  bool operator()(D volatile* dest, int bit, atomic_memory_order order) const;
+};
+
 // Define the class before including platform file, which may use this
 // as a base class, requiring it be complete.  The definition is later
 // in this file, near the other definitions related to cmpxchg.
@@ -604,7 +664,13 @@ class ScopedFence : public ScopedFenceGeneral<T> {
 
 // platform specific in-line definitions - must come before shared definitions
 
-#include OS_CPU_HEADER(atomic)
+#if defined(TARGET_COMPILER_gcc) || defined(TARGET_COMPILER_xlc)
+#include "atomic_gcc.hpp"
+#elif defined(TARGET_COMPILER_visCPP)
+#include "atomic_visCPP.hpp"
+#else
+#error Unknown toolchain.
+#endif
 
 // shared in-line definitions
 
@@ -961,6 +1027,24 @@ inline T Atomic::xchg_using_helper(Fn fn,
 template<typename D, typename T>
 inline D Atomic::xchg(volatile D* dest, T exchange_value, atomic_memory_order order) {
   return XchgImpl<D, T>()(dest, exchange_value, order);
+}
+
+template <typename D>
+ALWAYSINLINE bool Atomic::set_bit(D volatile* dest, int bit, atomic_memory_order order) {
+  assert(bit >= 0 && bit < sizeof(D) * 8, "bit index");
+  return PlatformBitSet<sizeof(D)>{}(dest, bit, order);
+}
+
+template <typename D>
+ALWAYSINLINE bool Atomic::test_bit(const D volatile* dest, int bit, atomic_memory_order order) {
+  assert(bit >= 0 && bit < sizeof(D) * 8, "bit index");
+  return PlatformBitTest<sizeof(D)>{}(dest, bit, order);
+}
+
+template <typename D>
+ALWAYSINLINE bool Atomic::clear_bit(D volatile* dest, int bit, atomic_memory_order order) {
+  assert(bit >= 0 && bit < sizeof(D) * 8, "bit index");
+  return PlatformBitClear<sizeof(D)>{}(dest, bit, order);
 }
 
 #endif // SHARE_RUNTIME_ATOMIC_HPP

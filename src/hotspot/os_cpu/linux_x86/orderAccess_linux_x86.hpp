@@ -32,29 +32,6 @@
 
 // Implementation of class OrderAccess.
 
-// A compiler barrier, forcing the C++ compiler to invalidate all memory assumptions
-static inline void compiler_barrier() {
-  __asm__ volatile ("" : : : "memory");
-}
-
-inline void OrderAccess::loadload()   { compiler_barrier(); }
-inline void OrderAccess::storestore() { compiler_barrier(); }
-inline void OrderAccess::loadstore()  { compiler_barrier(); }
-inline void OrderAccess::storeload()  { fence();            }
-
-inline void OrderAccess::acquire()    { compiler_barrier(); }
-inline void OrderAccess::release()    { compiler_barrier(); }
-
-inline void OrderAccess::fence() {
-   // always use locked addl since mfence is sometimes expensive
-#ifdef AMD64
-  __asm__ volatile ("lock; addl $0,0(%%rsp)" : : : "cc", "memory");
-#else
-  __asm__ volatile ("lock; addl $0,0(%%esp)" : : : "cc", "memory");
-#endif
-  compiler_barrier();
-}
-
 inline void OrderAccess::cross_modify_fence_impl() {
   if (VM_Version::supports_serialize()) {
     __asm__ volatile (".byte 0x0f, 0x01, 0xe8\n\t" : : :); //serialize
