@@ -28,7 +28,6 @@
 	# point or use it in the same manner as does the server
 	# compiler.
 	
-        .globl _Copy_arrayof_conjoint_bytes
 	.globl _Copy_arrayof_conjoint_jshorts
         .globl _Copy_conjoint_jshorts_atomic
         .globl _Copy_arrayof_conjoint_jints
@@ -45,100 +44,6 @@ SpinPause:
         rep
         nop
         movq   $1, %rax
-        ret
-
-        # Support for void Copy::arrayof_conjoint_bytes(void* from,
-        #                                               void* to,
-        #                                               size_t count)
-        # rdi - from
-        # rsi - to
-        # rdx - count, treated as ssize_t
-        #
-        .p2align 4,,15
-	.type    _Copy_arrayof_conjoint_bytes,@function
-_Copy_arrayof_conjoint_bytes:
-        movq     %rdx,%r8             # byte count
-        shrq     $3,%rdx              # qword count
-        cmpq     %rdi,%rsi
-        leaq     -1(%rdi,%r8,1),%rax  # from + bcount*1 - 1
-        jbe      acb_CopyRight
-        cmpq     %rax,%rsi
-        jbe      acb_CopyLeft 
-acb_CopyRight:
-        leaq     -8(%rdi,%rdx,8),%rax # from + qcount*8 - 8
-        leaq     -8(%rsi,%rdx,8),%rcx # to + qcount*8 - 8
-        negq     %rdx
-        jmp      7f
-        .p2align 4,,15
-1:      movq     8(%rax,%rdx,8),%rsi
-        movq     %rsi,8(%rcx,%rdx,8)
-        addq     $1,%rdx
-        jnz      1b
-2:      testq    $4,%r8               # check for trailing dword
-        jz       3f
-        movl     8(%rax),%esi         # copy trailing dword
-        movl     %esi,8(%rcx)
-        addq     $4,%rax
-        addq     $4,%rcx              # original %rsi is trashed, so we
-                                      #  can't use it as a base register
-3:      testq    $2,%r8               # check for trailing word
-        jz       4f
-        movw     8(%rax),%si          # copy trailing word
-        movw     %si,8(%rcx)
-        addq     $2,%rcx
-4:      testq    $1,%r8               # check for trailing byte
-        jz       5f
-        movb     -1(%rdi,%r8,1),%al   # copy trailing byte
-        movb     %al,8(%rcx)
-5:      ret
-        .p2align 4,,15
-6:      movq     -24(%rax,%rdx,8),%rsi
-        movq     %rsi,-24(%rcx,%rdx,8)
-        movq     -16(%rax,%rdx,8),%rsi
-        movq     %rsi,-16(%rcx,%rdx,8)
-        movq     -8(%rax,%rdx,8),%rsi
-        movq     %rsi,-8(%rcx,%rdx,8)
-        movq     (%rax,%rdx,8),%rsi
-        movq     %rsi,(%rcx,%rdx,8)
-7:      addq     $4,%rdx
-        jle      6b
-        subq     $4,%rdx
-        jl       1b
-        jmp      2b
-acb_CopyLeft:
-        testq    $1,%r8               # check for trailing byte
-        jz       1f
-        movb     -1(%rdi,%r8,1),%cl   # copy trailing byte
-        movb     %cl,-1(%rsi,%r8,1)
-        subq     $1,%r8               # adjust for possible trailing word
-1:      testq    $2,%r8               # check for trailing word
-        jz       2f
-        movw     -2(%rdi,%r8,1),%cx   # copy trailing word
-        movw     %cx,-2(%rsi,%r8,1)
-2:      testq    $4,%r8               # check for trailing dword
-        jz       5f
-        movl     (%rdi,%rdx,8),%ecx   # copy trailing dword
-        movl     %ecx,(%rsi,%rdx,8)
-        jmp      5f
-        .p2align 4,,15
-3:      movq     -8(%rdi,%rdx,8),%rcx
-        movq     %rcx,-8(%rsi,%rdx,8)
-        subq     $1,%rdx
-        jnz      3b
-        ret
-        .p2align 4,,15
-4:      movq     24(%rdi,%rdx,8),%rcx
-        movq     %rcx,24(%rsi,%rdx,8)
-        movq     16(%rdi,%rdx,8),%rcx
-        movq     %rcx,16(%rsi,%rdx,8)
-        movq     8(%rdi,%rdx,8),%rcx
-        movq     %rcx,8(%rsi,%rdx,8)
-        movq     (%rdi,%rdx,8),%rcx
-        movq     %rcx,(%rsi,%rdx,8)
-5:      subq     $4,%rdx
-        jge      4b
-        addq     $4,%rdx
-        jg       3b
         ret
 
         # Support for void Copy::arrayof_conjoint_jshorts(void* from,

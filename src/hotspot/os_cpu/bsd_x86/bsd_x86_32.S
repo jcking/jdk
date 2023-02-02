@@ -39,7 +39,6 @@
         # point or use it in the same manner as does the server
         # compiler.
 
-        .globl SYMBOL(_Copy_arrayof_conjoint_bytes)
         .globl SYMBOL(_Copy_conjoint_jshorts_atomic)
         .globl SYMBOL(_Copy_arrayof_conjoint_jshorts)
         .globl SYMBOL(_Copy_conjoint_jints_atomic)
@@ -69,95 +68,6 @@ SYMBOL(SpinPause):
         rep
         nop
         movl    $1, %eax
-        ret
-
-        # Support for void Copy::arrayof_conjoint_bytes(void* from,
-        #                                               void* to,
-        #                                               size_t count)
-        #
-        .p2align 4,,15
-        ELF_TYPE(_Copy_arrayof_conjoint_bytes,@function)
-SYMBOL(_Copy_arrayof_conjoint_bytes):
-        pushl    %esi
-        movl     4+12(%esp),%ecx      # count
-        pushl    %edi
-        movl     8+ 4(%esp),%esi      # from
-        movl     8+ 8(%esp),%edi      # to
-        cmpl     %esi,%edi
-        leal     -1(%esi,%ecx),%eax   # from + count - 1
-        jbe      acb_CopyRight
-        cmpl     %eax,%edi
-        jbe      acb_CopyLeft
-        # copy from low to high
-acb_CopyRight:
-        cmpl     $3,%ecx
-        jbe      5f
-1:      movl     %ecx,%eax
-        shrl     $2,%ecx
-        jz       4f
-        cmpl     $32,%ecx
-        ja       3f
-        # copy aligned dwords
-        subl     %esi,%edi
-        .p2align 4,,15
-2:      movl     (%esi),%edx
-        movl     %edx,(%edi,%esi,1)
-        addl     $4,%esi
-        subl     $1,%ecx
-        jnz      2b
-        addl     %esi,%edi
-        jmp      4f
-        # copy aligned dwords
-3:      rep;     smovl
-4:      movl     %eax,%ecx
-5:      andl     $3,%ecx
-        jz       7f
-        # copy suffix
-        xorl     %eax,%eax
-6:      movb     (%esi,%eax,1),%dl
-        movb     %dl,(%edi,%eax,1)
-        addl     $1,%eax
-        subl     $1,%ecx
-        jnz      6b
-7:      popl     %edi
-        popl     %esi
-        ret
-acb_CopyLeft:
-        std
-        leal     -4(%edi,%ecx),%edi   # to + count - 4
-        movl     %eax,%esi            # from + count - 1
-        movl     %ecx,%eax
-        subl     $3,%esi              # from + count - 4
-        cmpl     $3,%ecx
-        jbe      5f
-1:      shrl     $2,%ecx
-        jz       4f
-        cmpl     $32,%ecx
-        jbe      2f                   # <= 32 dwords
-        rep;     smovl
-        jmp      4f
-        .space 8
-2:      subl     %esi,%edi
-        .p2align 4,,15
-3:      movl     (%esi),%edx
-        movl     %edx,(%edi,%esi,1)
-        subl     $4,%esi
-        subl     $1,%ecx
-        jnz      3b
-        addl     %esi,%edi
-4:      movl     %eax,%ecx
-5:      andl     $3,%ecx
-        jz       7f
-        subl     %esi,%edi
-        addl     $3,%esi
-6:      movb     (%esi),%dl
-        movb     %dl,(%edi,%esi,1)
-        subl     $1,%esi
-        subl     $1,%ecx
-        jnz      6b
-7:      cld
-        popl     %edi
-        popl     %esi
         ret
 
         # Support for void Copy::conjoint_jshorts_atomic(void* from,

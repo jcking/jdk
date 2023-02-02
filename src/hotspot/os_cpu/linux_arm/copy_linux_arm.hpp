@@ -25,32 +25,8 @@
 #ifndef OS_CPU_LINUX_ARM_COPY_LINUX_ARM_HPP
 #define OS_CPU_LINUX_ARM_COPY_LINUX_ARM_HPP
 
-static void pd_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  _Copy_conjoint_words(from, to, count * HeapWordSize);
-}
-
-static void pd_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  _Copy_disjoint_words(from, to, count * HeapWordSize);
-}
-
 static void pd_disjoint_words_atomic(const HeapWord* from, HeapWord* to, size_t count) {
   pd_disjoint_words(from, to, count);
-}
-
-static void pd_aligned_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  pd_conjoint_words(from, to, count);
-}
-
-static void pd_aligned_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  pd_disjoint_words(from, to, count);
-}
-
-static void pd_conjoint_bytes(const void* from, void* to, size_t count) {
-  memmove(to, from, count);
-}
-
-static void pd_conjoint_bytes_atomic(const void* from, void* to, size_t count) {
-  pd_conjoint_bytes(from, to, count);
 }
 
 static void pd_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t count) {
@@ -70,10 +46,6 @@ static void pd_conjoint_jlongs_atomic(const jlong* from, jlong* to, size_t count
 static void pd_conjoint_oops_atomic(const oop* from, oop* to, size_t count) {
   assert(BytesPerHeapOop == BytesPerInt, "32-bit architecture");
   pd_conjoint_jints_atomic((const jint*)from, (jint*)to, count);
-}
-
-static void pd_arrayof_conjoint_bytes(const HeapWord* from, HeapWord* to, size_t count) {
-  pd_conjoint_bytes_atomic((const void*)from, (void*)to, count);
 }
 
 static void pd_arrayof_conjoint_jshorts(const HeapWord* from, HeapWord* to, size_t count) {

@@ -33,23 +33,21 @@
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 
+#include <cstring>
+
 // Assembly code for platforms that need it.
 extern "C" {
-  void _Copy_conjoint_words(const HeapWord* from, HeapWord* to, size_t count);
-  void _Copy_disjoint_words(const HeapWord* from, HeapWord* to, size_t count);
-
   void _Copy_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t count);
   void _Copy_conjoint_jints_atomic  (const jint*   from, jint*   to, size_t count);
   void _Copy_conjoint_jlongs_atomic (const jlong*  from, jlong*  to, size_t count);
   void _Copy_conjoint_oops_atomic   (const oop*    from, oop*    to, size_t count);
 
-  void _Copy_arrayof_conjoint_bytes  (const HeapWord* from, HeapWord* to, size_t count);
   void _Copy_arrayof_conjoint_jshorts(const HeapWord* from, HeapWord* to, size_t count);
   void _Copy_arrayof_conjoint_jints  (const HeapWord* from, HeapWord* to, size_t count);
   void _Copy_arrayof_conjoint_jlongs (const HeapWord* from, HeapWord* to, size_t count);
 }
 
-class Copy : AllStatic {
+class Copy final : public AllStatic {
  public:
   // Block copy methods have four attributes.  We don't define all possibilities.
   //   alignment: aligned to BytesPerLong
@@ -83,14 +81,14 @@ class Copy : AllStatic {
   // Word-aligned words,    conjoint, not atomic on each word
   static void conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
     assert_params_ok(from, to, HeapWordSize);
-    pd_conjoint_words(from, to, count);
+    ::memmove(to, from, count * HeapWordSize);
   }
 
   // Word-aligned words,    disjoint, not atomic on each word
   static void disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
     assert_params_ok(from, to, HeapWordSize);
     assert_disjoint(from, to, count);
-    pd_disjoint_words(from, to, count);
+    ::memcpy(to, from, count * HeapWordSize);
   }
 
   // Word-aligned words,    disjoint, atomic on each word
@@ -103,26 +101,26 @@ class Copy : AllStatic {
   // Object-aligned words,  conjoint, not atomic on each word
   static void aligned_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
     assert_params_aligned(from, to);
-    pd_aligned_conjoint_words(from, to, count);
+    ::memmove(to, from, count * HeapWordSize);
   }
 
   // Object-aligned words,  disjoint, not atomic on each word
   static void aligned_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
     assert_params_aligned(from, to);
     assert_disjoint(from, to, count);
-    pd_aligned_disjoint_words(from, to, count);
+    ::memcpy(to, from, count * HeapWordSize);
   }
 
   // bytes, jshorts, jints, jlongs, oops
 
   // bytes,                 conjoint, not atomic on each byte (not that it matters)
   static void conjoint_jbytes(const void* from, void* to, size_t count) {
-    pd_conjoint_bytes(from, to, count);
+    ::memmove(to, from, count);
   }
 
   // bytes,                 conjoint, atomic on each byte (not that it matters)
   static void conjoint_jbytes_atomic(const void* from, void* to, size_t count) {
-    pd_conjoint_bytes(from, to, count);
+    ::memmove(to, from, count);
   }
 
   // jshorts,               conjoint, atomic on each jshort
@@ -164,7 +162,7 @@ class Copy : AllStatic {
 
   // bytes,                 conjoint array, atomic on each byte (not that it matters)
   static void arrayof_conjoint_jbytes(const HeapWord* from, HeapWord* to, size_t count) {
-    pd_arrayof_conjoint_bytes(from, to, count);
+    ::memmove(to, from, count);
   }
 
   // jshorts,               conjoint array, atomic on each jshort
@@ -256,7 +254,7 @@ class Copy : AllStatic {
     if (Endian::NATIVE != endian) {
       conjoint_swap(src, dst, byte_count, elem_size);
     } else {
-      conjoint_copy(src, dst, byte_count, elem_size);
+      ::memmove(dst, src, byte_count);
     }
   }
 
@@ -266,17 +264,17 @@ class Copy : AllStatic {
   // set_words
   static void fill_to_words(HeapWord* to, size_t count, juint value = 0) {
     assert_params_ok(to, HeapWordSize);
-    pd_fill_to_words(to, count, value);
+    value != 0 ? pd_fill_to_words(to, count, value) : zero_to_words(to, count);
   }
 
   static void fill_to_aligned_words(HeapWord* to, size_t count, juint value = 0) {
     assert_params_aligned(to);
-    pd_fill_to_aligned_words(to, count, value);
+    value != 0 ? pd_fill_to_aligned_words(to, count, value) : zero_to_words(to, count);
   }
 
   // Fill bytes
   static void fill_to_bytes(void* to, size_t count, jubyte value = 0) {
-    pd_fill_to_bytes(to, count, value);
+    ::memset(to, value, count);
   }
 
   // Fill a span of memory.  If the span is an integral number of aligned
@@ -290,12 +288,12 @@ class Copy : AllStatic {
   // Zero word-aligned words, not atomic on each word
   static void zero_to_words(HeapWord* to, size_t count) {
     assert_params_ok(to, HeapWordSize);
-    pd_zero_to_words(to, count);
+    zero_to_bytes(to, count * HeapWordSize);
   }
 
   // Zero bytes
   static void zero_to_bytes(void* to, size_t count) {
-    pd_zero_to_bytes(to, count);
+    ::memset(to, '\0', count);
   }
 
  protected:

@@ -27,28 +27,4 @@
 
 #include OS_CPU_HEADER(copy)
 
-static void pd_fill_to_words(HeapWord* tohw, size_t count, juint value) {
-  juint* to = (juint*)tohw;
-  count *= HeapWordSize / BytesPerInt;
-  while (count-- > 0) {
-    *to++ = value;
-  }
-}
-
-static void pd_fill_to_aligned_words(HeapWord* tohw, size_t count, juint value) {
-  pd_fill_to_words(tohw, count, value);
-}
-
-static void pd_fill_to_bytes(void* to, size_t count, jubyte value) {
-  memset(to, value, count);
-}
-
-static void pd_zero_to_words(HeapWord* tohw, size_t count) {
-  pd_fill_to_words(tohw, count, 0);
-}
-
-static void pd_zero_to_bytes(void* to, size_t count) {
-  memset(to, 0, count);
-}
-
 #endif // CPU_ARM_COPY_ARM_HPP

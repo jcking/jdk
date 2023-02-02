@@ -88,14 +88,6 @@ static void pd_conjoint_oops_atomic(const oop* from, oop* to, size_t count) {
   pd_conjoint_atomic_helper(from, to, count);
 }
 
-static void pd_arrayof_conjoint_bytes(const HeapWord* from, HeapWord* to, size_t count) {
-#ifdef AMD64
-  pd_conjoint_bytes_atomic(from, to, count);
-#else
-  pd_conjoint_bytes(from, to, count);
-#endif // AMD64
-}
-
 static void pd_arrayof_conjoint_jshorts(const HeapWord* from, HeapWord* to, size_t count) {
   pd_conjoint_jshorts_atomic((const jshort*)from, (jshort*)to, count);
 }

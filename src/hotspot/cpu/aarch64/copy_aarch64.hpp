@@ -28,30 +28,6 @@
 
 #include OS_CPU_HEADER(copy)
 
-static void pd_fill_to_words(HeapWord* tohw, size_t count, juint value) {
-  julong* to = (julong*) tohw;
-  julong  v  = ((julong) value << 32) | value;
-  while (count-- > 0) {
-    *to++ = v;
-  }
-}
-
-static void pd_fill_to_aligned_words(HeapWord* tohw, size_t count, juint value) {
-  pd_fill_to_words(tohw, count, value);
-}
-
-static void pd_fill_to_bytes(void* to, size_t count, jubyte value) {
-  (void)memset(to, value, count);
-}
-
-static void pd_zero_to_words(HeapWord* tohw, size_t count) {
-  pd_fill_to_words(tohw, count, 0);
-}
-
-static void pd_zero_to_bytes(void* to, size_t count) {
-  (void)memset(to, 0, count);
-}
-
 #ifndef _WINDOWS
 
 #define COPY_SMALL(from, to, count)                                     \
@@ -127,28 +103,6 @@ static void pd_zero_to_bytes(void* to, size_t count) {
   : "memory", "cc");                                                    \
 }
 
-static void pd_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  __asm volatile( "prfm pldl1strm, [%[s], #0];" :: [s]"r"(from) : "memory");
-  if (__builtin_expect(count <= 8, 1)) {
-    COPY_SMALL(from, to, count);
-    return;
-  }
-  _Copy_conjoint_words(from, to, count);
-}
-
-static void pd_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  if (__builtin_constant_p(count)) {
-    memcpy(to, from, count * sizeof(HeapWord));
-    return;
-  }
-  __asm volatile( "prfm pldl1strm, [%[s], #0];" :: [s]"r"(from) : "memory");
-  if (__builtin_expect(count <= 8, 1)) {
-    COPY_SMALL(from, to, count);
-    return;
-  }
-  _Copy_disjoint_words(from, to, count);
-}
-
 static void pd_disjoint_words_atomic(const HeapWord* from, HeapWord* to, size_t count) {
   __asm volatile( "prfm pldl1strm, [%[s], #0];" :: [s]"r"(from) : "memory");
   if (__builtin_expect(count <= 8, 1)) {
@@ -156,22 +110,6 @@ static void pd_disjoint_words_atomic(const HeapWord* from, HeapWord* to, size_t 
     return;
   }
   _Copy_disjoint_words(from, to, count);
-}
-
-static void pd_aligned_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  pd_conjoint_words(from, to, count);
-}
-
-static void pd_aligned_disjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
-  pd_disjoint_words(from, to, count);
-}
-
-static void pd_conjoint_bytes(const void* from, void* to, size_t count) {
-  (void)memmove(to, from, count);
-}
-
-static void pd_conjoint_bytes_atomic(const void* from, void* to, size_t count) {
-  pd_conjoint_bytes(from, to, count);
 }
 
 static void pd_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t count) {
@@ -189,10 +127,6 @@ static void pd_conjoint_jlongs_atomic(const jlong* from, jlong* to, size_t count
 static void pd_conjoint_oops_atomic(const oop* from, oop* to, size_t count) {
   assert(BytesPerLong == BytesPerOop, "jlongs and oops must be the same size");
   _Copy_conjoint_jlongs_atomic((const jlong*)from, (jlong*)to, count);
-}
-
-static void pd_arrayof_conjoint_bytes(const HeapWord* from, HeapWord* to, size_t count) {
-  _Copy_arrayof_conjoint_bytes(from, to, count);
 }
 
 static void pd_arrayof_conjoint_jshorts(const HeapWord* from, HeapWord* to, size_t count) {
