@@ -27,6 +27,7 @@
 
 #include "utilities/breakpoint.hpp"
 #include "utilities/compilerWarnings.hpp"
+#include "utilities/optimization.hpp"
 #include "utilities/macros.hpp"
 
 #include <stddef.h>
@@ -48,7 +49,7 @@ bool handle_assert_poison_fault(const void* ucVoid, const void* faulting_address
 
 // assertions
 #ifndef ASSERT
-#define vmassert(p, ...)
+#define vmassert(p, ...) ASSUME(p)
 #else
 // Note: message says "assert" rather than "vmassert" for backward
 // compatibility with tools that parse/match the message text.
@@ -56,7 +57,7 @@ bool handle_assert_poison_fault(const void* ucVoid, const void* faulting_address
 // compiler can't handle an empty ellipsis in a macro without a warning.
 #define vmassert(p, ...)                                                       \
 do {                                                                           \
-  if (!(p)) {                                                                  \
+  if (UNLIKELY(!(p))) {                                                        \
     TOUCH_ASSERT_POISON;                                                       \
     report_vm_error(__FILE__, __LINE__, "assert(" #p ") failed", __VA_ARGS__); \
     BREAKPOINT;                                                                \
@@ -71,7 +72,7 @@ do {                                                                           \
 #define postcond(p)  assert(p, "postcond")
 
 #ifndef ASSERT
-#define vmassert_status(p, status, msg)
+#define vmassert_status(p, status, msg) ASSUME(p)
 #else
 // This version of vmassert is for use with checking return status from
 // library calls that return actual error values eg. EINVAL,
@@ -82,7 +83,7 @@ do {                                                                           \
 // like "Invalid argument", "out of memory" etc
 #define vmassert_status(p, status, msg) \
 do {                                                                           \
-  if (!(p)) {                                                                  \
+  if (UNLIKELY(!(p))) {                                                        \
     TOUCH_ASSERT_POISON;                                                       \
     report_vm_status_error(__FILE__, __LINE__, "assert(" #p ") failed",        \
                            status, msg);                                       \
@@ -99,7 +100,7 @@ do {                                                                           \
 // guarantee is also used for Verify options.
 #define guarantee(p, ...)                                                         \
 do {                                                                              \
-  if (!(p)) {                                                                     \
+  if (UNLIKELY(!(p))) {                                                           \
     TOUCH_ASSERT_POISON;                                                          \
     report_vm_error(__FILE__, __LINE__, "guarantee(" #p ") failed", __VA_ARGS__); \
     BREAKPOINT;                                                                   \
