@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/globals.hpp"
+#include "sanitizers/address.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -106,6 +107,7 @@ protected:
     if (pointer_delta(_max, _hwm, 1) >= x) {
       char *old = _hwm;
       _hwm += x;
+      ASAN_UNPOISON_MEMORY_REGION(old, x);
       return old;
     } else {
       return grow(x, alloc_failmode);
@@ -146,6 +148,7 @@ protected:
 #ifdef ASSERT
     if (ZapResourceArea) memset(ptr, badResourceValue, size); // zap freed memory
 #endif
+    ASAN_POISON_MEMORY_REGION(ptr, size);
     if (((char*)ptr) + size == _hwm) {
       _hwm = (char*)ptr;
       return true;

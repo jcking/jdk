@@ -117,11 +117,18 @@ class ChunkPool {
 
   // Given a (inner payload) size, return the pool responsible for it, or null if the size is non-standard
   static ChunkPool* get_pool_for_size(size_t size) {
+    // The chunk pool is disabled when we are building with ASan. ASan stores stack
+    // traces track of where memory was allocated and uses this as parts of reports.
+    // By pooling we make this information irrelevant as the allocation, as far as
+    // ASan understands, may no longer be related to where the error occurred. We
+    // may have allocated in thread T1 and re-used the chunk in thread T2.
+#ifndef ADDRESS_SANITIZER
     for (int i = 0; i < _num_pools; i++) {
       if (_pools[i]._size == size) {
         return _pools + i;
       }
     }
+#endif
     return nullptr;
   }
 
@@ -173,6 +180,7 @@ void* Chunk::operator new (size_t sizeofChunk, AllocFailType alloc_failmode, siz
   if (pool != nullptr) {
     Chunk* c = pool->allocate();
     if (c != nullptr) {
+      // Chunk payload was already poisoned upon free.
       assert(c->length() == length, "wrong length?");
       return c;
     }
@@ -183,6 +191,7 @@ void* Chunk::operator new (size_t sizeofChunk, AllocFailType alloc_failmode, siz
   if (p == nullptr && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
     vm_exit_out_of_memory(bytes, OOM_MALLOC_ERROR, "Chunk::new");
   }
+  ASAN_POISON_MEMORY_REGION(((char*) p) + ARENA_ALIGN(sizeofChunk), length);
   // We rely on arena alignment <= malloc alignment.
   assert(is_aligned(p, ARENA_AMALLOC_ALIGNMENT), "Chunk start address misaligned.");
   return p;
@@ -193,6 +202,7 @@ void Chunk::operator delete(void* p) {
   Chunk* c = (Chunk*)p;
   ChunkPool* pool = ChunkPool::get_pool_for_size(c->length());
   if (pool != nullptr) {
+    ASAN_POISON_MEMORY_REGION(c->bottom(), c->length());
     pool->free(c);
   } else {
     ThreadCritical tc;  // Free chunks under TC lock so that NMT adjustment is stable.
@@ -208,8 +218,10 @@ void Chunk::chop() {
   Chunk *k = this;
   while( k ) {
     Chunk *tmp = k->next();
+#ifndef ADDRESS_SANITIZER
     // clear out this chunk (to detect allocation bugs)
     if (ZapResourceArea) memset(k->bottom(), badResourceValue, k->length());
+#endif
     delete k;                   // Free chunk (was malloc'd)
     k = tmp;
   }
@@ -323,6 +335,7 @@ void* Arena::grow(size_t x, AllocFailType alloc_failmode) {
   set_size_in_bytes(size_in_bytes() + len);
   void* result = _hwm;
   _hwm += x;
+  ASAN_UNPOISON_MEMORY_REGION(result, x);
   return result;
 }
 
@@ -341,8 +354,10 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
   char *c_old = (char*)old_ptr; // Handy name
   // Stupid fast special case
   if( new_size <= old_size ) {  // Shrink in-place
-    if( c_old+old_size == _hwm) // Attempt to free the excess bytes
+    if( c_old+old_size == _hwm) { // Attempt to free the excess bytes
       _hwm = c_old+new_size;    // Adjust hwm
+      ASAN_POISON_MEMORY_REGION(_hwm, old_size - new_size);
+    }
     return c_old;
   }
 
@@ -352,6 +367,7 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
   // See if we can resize in-place
   if( (c_old+old_size == _hwm) &&       // Adjusting recent thing
       (c_old+corrected_new_size <= _max) ) {      // Still fits where it sits
+    ASAN_UNPOISON_MEMORY_REGION(c_old + old_size, corrected_new_size - old_size);
     _hwm = c_old+corrected_new_size;      // Adjust hwm
     return c_old;               // Return old pointer
   }
