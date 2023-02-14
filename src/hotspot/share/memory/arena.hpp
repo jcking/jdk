@@ -145,6 +145,8 @@ protected:
     if (ptr == nullptr) {
       return true; // as with free(3), freeing null is a noop.
     }
+    os::free(((char*) ptr) - Chunk::aligned_overhead_size());
+    return false;
 #ifdef ASSERT
     if (ZapResourceArea) memset(ptr, badResourceValue, size); // zap freed memory
 #endif

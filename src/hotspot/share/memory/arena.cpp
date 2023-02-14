@@ -244,21 +244,14 @@ void Chunk::start_chunk_pool_cleaner_task() {
 
 //------------------------------Arena------------------------------------------
 
-Arena::Arena(MEMFLAGS flag, size_t init_size) : _flags(flag), _size_in_bytes(0)  {
-  init_size = ARENA_ALIGN(init_size);
-  _first = _chunk = new (AllocFailStrategy::EXIT_OOM, init_size) Chunk(init_size);
-  _hwm = _chunk->bottom();      // Save the cached hwm, max
-  _max = _chunk->top();
-  MemTracker::record_new_arena(flag);
-  set_size_in_bytes(init_size);
-}
+Arena::Arena(MEMFLAGS flag, size_t init_size) : Arena(flags)  {}
 
 Arena::Arena(MEMFLAGS flag) : _flags(flag), _size_in_bytes(0) {
-  _first = _chunk = new (AllocFailStrategy::EXIT_OOM, Chunk::init_size) Chunk(Chunk::init_size);
-  _hwm = _chunk->bottom();      // Save the cached hwm, max
-  _max = _chunk->top();
+  _first = _chunk = nullptr;
+  _hwm = nullptr;      // Save the cached hwm, max
+  _max = nullptr;
   MemTracker::record_new_arena(flag);
-  set_size_in_bytes(Chunk::init_size);
+  set_size_in_bytes(0);
 }
 
 Arena *Arena::move_contents(Arena *copy) {
@@ -288,9 +281,6 @@ void Arena::destruct_contents() {
   // reset size before chop to avoid a rare racing condition
   // that can have total arena memory exceed total chunk memory
   set_size_in_bytes(0);
-  if (_first != nullptr) {
-    _first->chop();
-  }
   reset();
 }
 
@@ -319,7 +309,7 @@ size_t Arena::used() const {
 void* Arena::grow(size_t x, AllocFailType alloc_failmode) {
   // Get minimal required size.  Either real big, or even bigger for giant objs
   // (Note: all chunk sizes have to be 64-bit aligned)
-  size_t len = MAX2(ARENA_ALIGN(x), (size_t) Chunk::size);
+  size_t len = ARENA_ALIGN(x);
 
   Chunk *k = _chunk;            // Get filled-up chunk address
   _chunk = new (alloc_failmode, len) Chunk(len);
@@ -352,25 +342,6 @@ void *Arena::Arealloc(void* old_ptr, size_t old_size, size_t new_size, AllocFail
     return Amalloc(new_size, alloc_failmode); // as with realloc(3), a null old ptr is equivalent to malloc(3)
   }
   char *c_old = (char*)old_ptr; // Handy name
-  // Stupid fast special case
-  if( new_size <= old_size ) {  // Shrink in-place
-    if( c_old+old_size == _hwm) { // Attempt to free the excess bytes
-      _hwm = c_old+new_size;    // Adjust hwm
-      ASAN_POISON_MEMORY_REGION(_hwm, old_size - new_size);
-    }
-    return c_old;
-  }
-
-  // make sure that new_size is legal
-  size_t corrected_new_size = ARENA_ALIGN(new_size);
-
-  // See if we can resize in-place
-  if( (c_old+old_size == _hwm) &&       // Adjusting recent thing
-      (c_old+corrected_new_size <= _max) ) {      // Still fits where it sits
-    ASAN_UNPOISON_MEMORY_REGION(c_old + old_size, corrected_new_size - old_size);
-    _hwm = c_old+corrected_new_size;      // Adjust hwm
-    return c_old;               // Return old pointer
-  }
 
   // Oops, got to relocate guts
   void *new_ptr = Amalloc(new_size, alloc_failmode);

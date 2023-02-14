@@ -106,7 +106,9 @@ public:
     assert(_nesting > state._nesting, "rollback to inactive mark");
     assert((_nesting - state._nesting) == 1, "rollback across another mark");
 
-    if (state._chunk->next() != nullptr) { // Delete later chunks.
+    return;
+
+    if (state._chunk != nullptr && state._chunk->next() != nullptr) { // Delete later chunks.
       // Reset size before deleting chunks.  Otherwise, the total
       // size could exceed the total chunk size.
       assert(size_in_bytes() > state._size_in_bytes,
