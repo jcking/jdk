@@ -244,7 +244,7 @@ void Chunk::start_chunk_pool_cleaner_task() {
 
 //------------------------------Arena------------------------------------------
 
-Arena::Arena(MEMFLAGS flag, size_t init_size) : Arena(flags)  {}
+Arena::Arena(MEMFLAGS flag, size_t init_size) : Arena(flag)  {}
 
 Arena::Arena(MEMFLAGS flag) : _flags(flag), _size_in_bytes(0) {
   _first = _chunk = nullptr;
