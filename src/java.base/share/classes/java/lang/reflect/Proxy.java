@@ -387,7 +387,7 @@ public class Proxy implements java.io.Serializable {
             Class<?> intf = interfaces[0];
             return proxyCache.sub(intf).computeIfAbsent(
                 loader,
-                (ld, clv) -> new ProxyBuilder(ld, clv.key()).build()
+                (clv, ld) -> new ProxyBuilder(ld, clv.key()).build()
             );
         } else {
             // interfaces cloned
@@ -395,7 +395,7 @@ public class Proxy implements java.io.Serializable {
             final List<Class<?>> intfs = Arrays.asList(intfsArray);
             return proxyCache.sub(intfs).computeIfAbsent(
                 loader,
-                (ld, clv) -> new ProxyBuilder(ld, clv.key()).build()
+                (clv, ld) -> new ProxyBuilder(ld, clv.key()).build()
             );
         }
     }
@@ -820,7 +820,7 @@ public class Proxy implements java.io.Serializable {
          * Each class loader will have one dynamic module.
          */
         private static Module getDynamicModule(ClassLoader loader) {
-            return dynProxyModules.computeIfAbsent(loader, (ld, clv) -> {
+            return dynProxyModules.computeIfAbsent(loader, (clv, ld) -> {
                 // create a dynamic module and setup module access
                 String mn = "jdk.proxy" + counter.incrementAndGet();
                 String pn = PROXY_PACKAGE_PREFIX + "." + mn;

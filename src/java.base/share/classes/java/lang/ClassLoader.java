@@ -231,7 +231,7 @@ public abstract class ClassLoader {
     // The parent class loader for delegation
     // Note: VM hardcoded the offset of this field, thus all new fields
     // must be added *after* it.
-    private final ClassLoader parent;
+    final ClassLoader parent;
 
     // class loader name
     private final String name;

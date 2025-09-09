@@ -494,7 +494,7 @@ public class NamingManager {
 
             var key = FACTORIES_CACHE.sub(className);
             try {
-                factory = key.computeIfAbsent(loader, (ld, ky) -> getFactory(ky.key()));
+                factory = key.computeIfAbsent(loader, (ky, ld) -> getFactory(ky.key()));
             } catch (FactoryInitializationError e) {
                 throw e.getCause();
             }

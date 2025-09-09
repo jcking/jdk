@@ -619,7 +619,7 @@ public class Level implements java.io.Serializable {
 
         private static void registerWithClassLoader(Level customLevel) {
             final ClassLoader cl = customLevel.getClass().getClassLoader();
-            CUSTOM_LEVEL_CLV.computeIfAbsent(cl, (c, v) -> new ArrayList<>())
+            CUSTOM_LEVEL_CLV.computeIfAbsent(cl, (v, c) -> new ArrayList<>())
                 .add(customLevel);
         }
 

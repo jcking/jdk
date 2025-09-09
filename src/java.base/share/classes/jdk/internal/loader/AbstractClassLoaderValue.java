@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -42,7 +43,7 @@ import java.util.function.Supplier;
  * @param <CLV> the type of concrete ClassLoaderValue (this type)
  * @param <V>   the type of values associated with ClassLoaderValue
  */
-public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderValue<CLV, V>, V> {
+public abstract non-sealed class AbstractClassLoaderValue<CLV extends AbstractClassLoaderValue<CLV, V>, V> extends java.lang.ClassLoaderValue<V> {
 
     /**
      * Sole constructor.
@@ -90,8 +91,9 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      * @return the value associated with this ClassLoaderValue and given ClassLoader
      * or {@code null} if there is none.
      */
+    @Override
     public V get(ClassLoader cl) {
-        Object val = AbstractClassLoaderValue.<CLV>map(cl).get(this);
+        Object val = map(cl).get(this);
         try {
             return extractValue(val);
         } catch (Memoizer.RecursiveInvocationException e) {
@@ -116,8 +118,9 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      * @param v  the value to associate
      * @return previously associated value or null if there was none
      */
+    @Override
     public V putIfAbsent(ClassLoader cl, V v) {
-        ConcurrentHashMap<CLV, Object> map = map(cl);
+        ConcurrentHashMap<Object, Object> map = map(cl);
         @SuppressWarnings("unchecked")
         CLV clv = (CLV) this;
         while (true) {
@@ -138,6 +141,12 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
         }
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public V remove(ClassLoader cl) {
+        return (V) map(cl).remove(this);
+    }
+
     /**
      * Removes the value associated with this ClassLoaderValue and given
      * ClassLoader if the associated value is equal to given value {@code v} and
@@ -148,8 +157,15 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      * @param v  the value to compare with currently associated value
      * @return {@code true} if the association was removed or {@code false} if not
      */
+    @Override
     public boolean remove(ClassLoader cl, Object v) {
-        return AbstractClassLoaderValue.<CLV>map(cl).remove(this, v);
+        return map(cl).remove(this, v);
+    }
+
+
+    @Override
+    public V computeIfAbsent(ClassLoader cl, Function<? super ClassLoader, ? extends V> mappingFunction) {
+        return computeIfAbsent(cl, (clv, ld) -> mappingFunction.apply(ld));
     }
 
     /**
@@ -182,11 +198,11 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      */
     public V computeIfAbsent(ClassLoader cl,
                              BiFunction<
-                                 ? super ClassLoader,
                                  ? super CLV,
+                                 ? super ClassLoader,
                                  ? extends V
-                                 > mappingFunction) throws IllegalStateException {
-        ConcurrentHashMap<CLV, Object> map = map(cl);
+                                 > mappingFunction) {
+        ConcurrentHashMap<Object, Object> map = map(cl);
         @SuppressWarnings("unchecked")
         CLV clv = (CLV) this;
         Memoizer<CLV, V> mv = null;
@@ -244,26 +260,15 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
      *
      * @param cl the associated ClassLoader of the values to be removed
      */
+    @SuppressWarnings("unchecked")
     public void removeAll(ClassLoader cl) {
-        ConcurrentHashMap<CLV, Object> map = map(cl);
-        for (Iterator<CLV> i = map.keySet().iterator(); i.hasNext(); ) {
-            if (i.next().isEqualOrDescendantOf(this)) {
+        ConcurrentHashMap<Object, Object> map = map(cl);
+        for (Iterator<Object> i = map.keySet().iterator(); i.hasNext(); ) {
+            Object o = i.next();
+            if (o instanceof AbstractClassLoaderValue && ((AbstractClassLoaderValue<CLV, V>) o).isEqualOrDescendantOf(this)) {
                 i.remove();
             }
         }
-    }
-
-    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
-
-    /**
-     * @return a ConcurrentHashMap for given ClassLoader
-     */
-    @SuppressWarnings("unchecked")
-    private static <CLV extends AbstractClassLoaderValue<CLV, ?>>
-    ConcurrentHashMap<CLV, Object> map(ClassLoader cl) {
-        return (ConcurrentHashMap<CLV, Object>)
-            (cl == null ? BootLoader.getClassLoaderValueMap()
-                        : JLA.createOrGetClassLoaderValueMap(cl));
     }
 
     /**
@@ -295,7 +300,7 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
 
         private final ClassLoader cl;
         private final CLV clv;
-        private final BiFunction<? super ClassLoader, ? super CLV, ? extends V>
+        private final BiFunction<? super CLV, ? super ClassLoader, ? extends V>
             mappingFunction;
 
         private volatile V v;
@@ -304,7 +309,7 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
 
         Memoizer(ClassLoader cl,
                  CLV clv,
-                 BiFunction<? super ClassLoader, ? super CLV, ? extends V>
+                 BiFunction<? super CLV, ? super ClassLoader, ? extends V>
                      mappingFunction
         ) {
             this.cl = cl;
@@ -326,7 +331,7 @@ public abstract class AbstractClassLoaderValue<CLV extends AbstractClassLoaderVa
                         inCall = true;
                         try {
                             this.v = v = Objects.requireNonNull(
-                                mappingFunction.apply(cl, clv));
+                                mappingFunction.apply(clv, cl));
                         } catch (Throwable x) {
                             this.t = t = x;
                         } finally {
